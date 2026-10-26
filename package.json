@@ -21,12 +21,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "express": "^5.1.0",
     "mime-types": "^3.0.1",
     "openscad-wasm": "^0.0.4",
-    "sharp": "^0.35.3",
-    "zod": "^3.25.76"
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
