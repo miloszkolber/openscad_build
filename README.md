@@ -53,6 +53,12 @@ Renders and model exports are saved under `./workspace/artifacts` on the host. T
 
 Customize runtime limits (memory, timeouts, directories) by copying `.env.example` to `.env` and editing the environment variables.
 
+`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Queue waiting time is not included in the execution timeout.
+
+Disconnecting an HTTP tool request or cancelling it through the MCP request signal removes queued rendering work or terminates its running WASM worker. The concurrency permit is held until the worker exits, and job staging is cleaned up. Completed artifacts and preview tokens are not deleted by cancellation. These guarantees apply to the server's tool calls, not independent processes launched outside the server.
+
+After building, `scripts/cancellation-smoke.mjs` exercises real WASM output, geometry, previews, timeout ceilings and active/queued HTTP cancellation. Pipe it to Node in an otherwise idle disposable server container with `MAX_PARALLEL_JOBS=1` and a short `MAX_RENDER_MS` (for example, 4000). It reads the container's server process and workspace to verify worker exit and staging cleanup. Do not run it against a shared production container.
+
 ## Known Limitations
 
 - **Performance**: Complex models can be slow or memory-intensive inside WebAssembly.

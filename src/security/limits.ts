@@ -30,32 +30,47 @@ export class Semaphore {
     }
   }
 
-  async run<T>(fn: () => Promise<T>): Promise<T> {
-    await this.acquire();
+  async run<T>(fn: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    await this.acquire(signal);
     try {
+      signal?.throwIfAborted();
       return await fn();
     } finally {
       this.release();
     }
   }
 
-  private async acquire(): Promise<void> {
+  private async acquire(signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     if (this.active < this.max) {
       this.active += 1;
       return;
     }
 
-    await new Promise<void>((resolve) => {
-      this.queue.push(resolve);
+    await new Promise<void>((resolve, reject) => {
+      const grant = () => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      };
+      const onAbort = () => {
+        const index = this.queue.indexOf(grant);
+        if (index !== -1) {
+          this.queue.splice(index, 1);
+        }
+        reject(signal?.reason);
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+      this.queue.push(grant);
     });
-    this.active += 1;
   }
 
   private release(): void {
-    this.active -= 1;
     const next = this.queue.shift();
     if (next) {
+      // Transfer the existing permit before another caller can acquire it.
       next();
+    } else {
+      this.active -= 1;
     }
   }
 }

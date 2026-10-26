@@ -33,13 +33,18 @@ export async function handleExportModel(
         maxInputBytes: deps.config.limits.maxInputBytes
       });
 
-      const result = await deps.semaphore.run(() =>
-        deps.runner.export({
-          ...input,
-          jobId: job.id,
-          jobDir: job.dir,
-          timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
-        })
+      const result = await deps.semaphore.run(
+        () =>
+          deps.runner.export(
+            {
+              ...input,
+              jobId: job.id,
+              jobDir: job.dir,
+              timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
+            },
+            deps.signal
+          ),
+        deps.signal
       );
 
       if (!result.ok) {

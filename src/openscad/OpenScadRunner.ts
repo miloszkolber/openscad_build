@@ -37,6 +37,6 @@ export interface OpenScadExportResult extends OpenScadRunResult {
 }
 
 export interface OpenScadRunner {
-  validate(input: OpenScadValidateInput): Promise<OpenScadRunResult>;
-  export(input: OpenScadExportInput): Promise<OpenScadExportResult>;
+  validate(input: OpenScadValidateInput, signal?: AbortSignal): Promise<OpenScadRunResult>;
+  export(input: OpenScadExportInput, signal?: AbortSignal): Promise<OpenScadExportResult>;
 }

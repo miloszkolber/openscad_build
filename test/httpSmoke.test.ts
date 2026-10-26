@@ -1,8 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '../src/config.js';
 import { MockOpenScadRunner } from '../src/openscad/MockOpenScadRunner.js';
 import { Semaphore } from '../src/security/limits.js';
@@ -15,6 +15,7 @@ import { WorkspaceManager } from '../src/workspace/WorkspaceManager.js';
 let tempDir: string;
 let server: Server;
 let url: string;
+let dependencies: ToolDependencies;
 
 beforeEach(async () => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), 'openscad-http-smoke-'));
@@ -50,6 +51,7 @@ beforeEach(async () => {
     previewTokens: new PreviewTokenStore(config.preview.ttlSeconds),
     semaphore: new Semaphore(config.limits.maxParallelJobs)
   };
+  dependencies = deps;
 
   server = await startStreamableHttpServer(config, deps);
   const address = server.address();
@@ -67,6 +69,63 @@ afterEach(async () => {
 });
 
 describe('Streamable HTTP MCP smoke', () => {
+  it('forwards HTTP disconnects to running work and cleans the job', async () => {
+    let runningSignal: AbortSignal | undefined;
+    dependencies.runner.export = async (_input, signal) => {
+      runningSignal = signal;
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    };
+    const controller = new AbortController();
+    const request = exportRequest('cube(1);', controller.signal);
+    const rejection = expect(request).rejects.toThrow();
+    await vi.waitFor(() => expect(runningSignal).toBeDefined());
+    controller.abort();
+    await rejection;
+    await vi.waitFor(() => expect(runningSignal?.aborted).toBe(true));
+    await vi.waitFor(async () =>
+      expect(await readdir(dependencies.config.paths.jobTmpDir)).toEqual([])
+    );
+  });
+
+  it('removes disconnected queued work and allows a later request to finish', async () => {
+    const seen: string[] = [];
+    let release!: () => void;
+    const mock = new MockOpenScadRunner();
+    dependencies.semaphore = new Semaphore(1);
+    dependencies.runner.export = async (input) => {
+      seen.push(input.scad);
+      if (input.scad === 'slow') {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
+      return mock.export(input);
+    };
+    const first = exportRequest('slow');
+    await vi.waitFor(() => expect(seen).toEqual(['slow']));
+    const controller = new AbortController();
+    const second = exportRequest('cancelled', controller.signal);
+    const rejection = expect(second).rejects.toThrow();
+    await vi.waitFor(async () =>
+      expect(await readdir(dependencies.config.paths.jobTmpDir)).toHaveLength(2)
+    );
+    controller.abort();
+    await rejection;
+    await vi.waitFor(async () =>
+      expect(await readdir(dependencies.config.paths.jobTmpDir)).toHaveLength(1)
+    );
+    const third = exportRequest('later');
+    release();
+    expect((await first).status).toBe(200);
+    expect((await third).status).toBe(200);
+    expect(seen).toEqual(['slow', 'later']);
+    await vi.waitFor(async () =>
+      expect(await readdir(dependencies.config.paths.jobTmpDir)).toEqual([])
+    );
+  });
+
   it('lists tools and calls validate through /mcp', async () => {
     const tools = await postJsonRpc({
       jsonrpc: '2.0',
@@ -177,6 +236,24 @@ describe('Streamable HTTP MCP smoke', () => {
     );
   });
 });
+
+async function exportRequest(scad: string, signal?: AbortSignal) {
+  const response = await fetch(url, {
+    method: 'POST',
+    signal,
+    headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: scad,
+      method: 'tools/call',
+      params: {
+        name: 'openscad_export_model',
+        arguments: { scad, format: 'stl' }
+      }
+    })
+  });
+  return { status: response.status, text: await response.text() };
+}
 
 async function postJsonRpc(body: unknown, bearerToken?: string): Promise<Record<string, any>> {
   const headers: Record<string, string> = {

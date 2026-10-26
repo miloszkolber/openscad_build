@@ -23,6 +23,7 @@ import {
 } from './workspace.js';
 
 export interface ToolDependencies {
+  signal?: AbortSignal;
   config: AppConfig;
   runner: OpenScadRunner;
   workspace: WorkspaceManager;
@@ -32,6 +33,10 @@ export interface ToolDependencies {
 }
 
 export function registerTools(server: McpServer, deps: ToolDependencies): void {
+  const requestDependencies = (signal: AbortSignal): ToolDependencies => ({
+    ...deps,
+    signal: deps.signal ? AbortSignal.any([deps.signal, signal]) : signal
+  });
   server.registerTool(
     'openscad_validate',
     {
@@ -39,7 +44,8 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
       description: 'Validate OpenSCAD source with openscad-wasm and return diagnostics.',
       inputSchema: validateInputSchema.shape
     },
-    async (input) => asMcpToolResult(await handleValidate(input, deps))
+    async (input, extra) =>
+      asMcpToolResult(await handleValidate(input, requestDependencies(extra.signal)))
   );
 
   server.registerTool(
@@ -49,7 +55,8 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
       description: 'Export OpenSCAD source to an allowed model/vector format.',
       inputSchema: exportModelInputSchema.shape
     },
-    async (input) => asMcpToolResult(await handleExportModel(input, deps))
+    async (input, extra) =>
+      asMcpToolResult(await handleExportModel(input, requestDependencies(extra.signal)))
   );
 
   server.registerTool(
@@ -60,7 +67,8 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
         'Export STL and return an interactive 3D preview link when PREVIEW_ENABLED=true, otherwise render a server-side WebP mesh preview.',
       inputSchema: renderPreviewInputSchema.shape
     },
-    async (input) => asMcpToolResult(await handleRenderPreview(input, deps))
+    async (input, extra) =>
+      asMcpToolResult(await handleRenderPreview(input, requestDependencies(extra.signal)))
   );
 
   server.registerTool(
@@ -70,7 +78,8 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
       description: 'Export STL and compute a minimal bounding box and triangle count summary.',
       inputSchema: analyzeModelInputSchema.shape
     },
-    async (input) => asMcpToolResult(await handleAnalyzeModel(input, deps))
+    async (input, extra) =>
+      asMcpToolResult(await handleAnalyzeModel(input, requestDependencies(extra.signal)))
   );
 
   server.registerTool(
@@ -81,7 +90,8 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
         'Create a browser-viewable interactive STL preview link from SCAD, a workspace STL path, or an artifact path.',
       inputSchema: createPreviewLinkInputSchema.shape
     },
-    async (input) => asMcpToolResult(await handleCreatePreviewLink(input, deps))
+    async (input, extra) =>
+      asMcpToolResult(await handleCreatePreviewLink(input, requestDependencies(extra.signal)))
   );
 
   server.registerTool(

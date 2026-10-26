@@ -42,13 +42,18 @@ export async function handleValidate(
         maxInputBytes: deps.config.limits.maxInputBytes
       });
 
-      return await deps.semaphore.run(() =>
-        deps.runner.validate({
-          ...input,
-          jobId: job.id,
-          jobDir: job.dir,
-          timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
-        })
+      return await deps.semaphore.run(
+        () =>
+          deps.runner.validate(
+            {
+              ...input,
+              jobId: job.id,
+              jobDir: job.dir,
+              timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
+            },
+            deps.signal
+          ),
+        deps.signal
       );
     } finally {
       await deps.workspace.cleanupJob(job, deps.config.limits.cleanupJobs);

@@ -92,17 +92,22 @@ async function createPreviewFromScad(
       maxInputBytes: deps.config.limits.maxInputBytes
     });
 
-    const result = await deps.semaphore.run(() =>
-      deps.runner.export({
-        scad: input.scad,
-        format: 'stl',
-        files: input.files,
-        defines: input.defines,
-        enableManifold: input.enableManifold,
-        jobId: job.id,
-        jobDir: job.dir,
-        timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
-      })
+    const result = await deps.semaphore.run(
+      () =>
+        deps.runner.export(
+          {
+            scad: input.scad,
+            format: 'stl',
+            files: input.files,
+            defines: input.defines,
+            enableManifold: input.enableManifold,
+            jobId: job.id,
+            jobDir: job.dir,
+            timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
+          },
+          deps.signal
+        ),
+      deps.signal
     );
 
     if (!result.ok) {

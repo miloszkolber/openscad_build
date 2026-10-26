@@ -15,6 +15,8 @@ This checklist tracks the work left after the initial scaffold. The current proj
 
 ## Runtime Safety
 
+- [x] Propagate HTTP disconnect and MCP cancellation signals through queued and executing WASM jobs, awaiting worker termination before returning the concurrency permit.
+- [x] Enforce `MAX_RENDER_MS` as an execution ceiling while allowing shorter client timeouts, with cancellation, queue-cleanup and worker-lifetime regression tests.
 - [x] Replace the cooperative timeout wrapper with a worker-thread based hard timeout if `callMain` blocks the event loop.
   - Notes: `OpenScadWasmRunner` now executes WASM work in a worker thread and terminates the worker on timeout.
 - [x] Add memory and output-size behavior notes for complex models.

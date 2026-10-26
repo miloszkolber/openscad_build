@@ -53,14 +53,19 @@ export async function handleRenderPreview(
         maxInputBytes: deps.config.limits.maxInputBytes
       });
 
-      const result = await deps.semaphore.run(async () =>
-        deps.runner.export({
-          ...input,
-          format: 'stl',
-          jobId: job.id,
-          jobDir: job.dir,
-          timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
-        })
+      const result = await deps.semaphore.run(
+        async () =>
+          deps.runner.export(
+            {
+              ...input,
+              format: 'stl',
+              jobId: job.id,
+              jobDir: job.dir,
+              timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
+            },
+            deps.signal
+          ),
+        deps.signal
       );
 
       if (!result.ok) {

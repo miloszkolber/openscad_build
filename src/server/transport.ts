@@ -22,7 +22,14 @@ export async function startStreamableHttpServer(
   const requireMcpAuth = createMcpAuthMiddleware(config);
 
   app.post('/mcp', requireMcpAuth, async (req, res) => {
-    const mcpServer = createMcpServer(deps);
+    const controller = new AbortController();
+    const onClose = () => {
+      if (!res.writableEnded) {
+        controller.abort();
+      }
+    };
+    res.once('close', onClose);
+    const mcpServer = createMcpServer({ ...deps, signal: controller.signal });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
     });
@@ -32,7 +39,7 @@ export async function startStreamableHttpServer(
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (!res.headersSent) {
+      if (!res.headersSent && !res.destroyed) {
         res.status(500).json({
           jsonrpc: '2.0',
           error: {
@@ -43,6 +50,7 @@ export async function startStreamableHttpServer(
         });
       }
     } finally {
+      res.off('close', onClose);
       await transport.close();
       await mcpServer.close();
     }
