@@ -87,7 +87,7 @@ Keep OpenSCAD execution behind `OpenScadRunner`.
 - If the `openscad-wasm` API changes, prefer editing `OpenScadWasmRunner.ts` and local type declarations instead of spreading compatibility code through tools.
 - Each run uses a fresh worker thread and a fresh in-memory Emscripten filesystem. The main source is written at `/job/<sourcePath>` so relative includes and imports resolve beside it.
 
-Current `openscad-wasm` uncertainty is intentional. The scaffold compiles and tests with the mock runner while the real package API is confirmed.
+The real `openscad-wasm` backend is exercised by the deployed service. Keep the mock runner as the fast, deterministic test path; add real-backend checks when changing runner internals.
 
 ## Security Invariants
 
