@@ -10,6 +10,8 @@ describe('site assets and compose download links', () => {
     const prebuiltCompose = readFileSync(resolve(rootDir, 'docker-compose_prebuilt.yml'), 'utf-8');
     const siteCompose = readFileSync(resolve(siteDir, 'docker-compose.yml'), 'utf-8');
     expect(siteCompose).toBe(prebuiltCompose);
+    expect(prebuiltCompose).toContain('${OPENSCAD_IMAGE:?');
+    expect(prebuiltCompose).not.toContain('image: ghcr.io/suapapa/openscad-wasm-mcp:latest');
   });
 
   it('ensures site/.env.example matches root .env.example', () => {

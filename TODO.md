@@ -33,4 +33,4 @@ This checklist tracks remaining work after the browser merge. The project builds
 - [x] Restore input/output limits, source fidelity, and side-effect-free path rejection with regressions.
 - [x] Check screenshot cancellation/concurrency and browser paste/export recovery.
 - [x] Repair verification scripts and stale workflow/deployment references.
-- [ ] Rebuild, verify the assembled service, and record remaining limits.
+- [x] Rebuild and verify the assembled service: 77 tests, typecheck, lint, full build, real-WASM timeout/cancellation smoke, browser interaction checks and inline screenshots for both repository models. The optional CDP runner and full physical model verification suite were not run.

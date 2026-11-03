@@ -1,6 +1,6 @@
 services:
   openscad-mcp:
-    image: ghcr.io/suapapa/openscad-wasm-mcp:latest
+    image: ${OPENSCAD_IMAGE:?Set OPENSCAD_IMAGE to an image built from the merged checkout}
     env_file:
       - path: .env
         required: false

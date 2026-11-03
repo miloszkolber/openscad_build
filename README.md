@@ -25,6 +25,13 @@ volumes:
   - /path/to/models:/workspace:rw
 ```
 
+The prebuilt Compose download requires `OPENSCAD_IMAGE` to name an image built from this merged checkout. The upstream project's published image does not contain these local changes. To build and use a local image without a registry:
+
+```sh
+docker build -t openscad-mcp:local .
+OPENSCAD_IMAGE=openscad-mcp:local docker compose -f docker-compose_prebuilt.yml up -d
+```
+
 ## MCP Tools
 
 ### OpenSCAD tools
