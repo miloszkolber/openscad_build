@@ -15,6 +15,9 @@ export interface BuildOpenScadArgsInput {
 export function buildOpenScadArgs(input: BuildOpenScadArgsInput): string[] {
   const args: string[] = [input.inputPath, '-o', input.outputPath];
 
+  // Keep mesh exports within the byte ceiling without losing geometry precision.
+  if (input.format === 'stl') args.push('--export-format', 'binstl');
+
   if (input.enableManifold) {
     args.push('--enable=manifold');
   }

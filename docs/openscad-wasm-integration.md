@@ -40,6 +40,8 @@ Fresh-instance checks with minimal models:
 
 The MCP runner keeps `3mf` in the public allowlist because OpenSCAD advertises it, but returns a clear failed tool result when this specific WASM build cannot export it. Screenshot rendering does not use OpenSCAD PNG export.
 
+STL exports explicitly use `--export-format binstl` through the allowlisted args builder. This avoids ASCII expansion pushing imported meshes over the byte limit without decimating their geometry.
+
 ## Screenshot Rendering
 
 `openscad_screenshot` exports STL through the normal `OpenScadRunner.export()` path, then renders the STL mesh to PNG or WebP inside Node.js with `sharp`. This keeps the OpenSCAD integration behind the same WASM runner boundary and avoids a native OpenSCAD binary, browser automation, or raw OpenSCAD CLI arguments.
