@@ -54,7 +54,7 @@ describe('WorkspaceManager', () => {
     const workspace = manager['paths'].workspaceDir;
     await manager.writeWorkspaceFile({
       path: 'model/main.scad',
-      content: 'include "lib/shape.scad"\nshape(2);',
+      content: 'include <lib/shape.scad>\nshape(2);',
       maxInputBytes: 1024
     });
     await manager.writeWorkspaceFile({
@@ -74,7 +74,7 @@ describe('WorkspaceManager', () => {
     });
 
     expect(resolved.sourcePath).toBe('model/main.scad');
-    expect(resolved.scad).toContain('include "lib/shape.scad"');
+    expect(resolved.scad).toContain('include <lib/shape.scad>');
     expect(resolved.files['model/lib/shape.scad']).toBe('module shape(size) cube(size);');
     expect(resolved.files['model/lib/part.stl']).toEqual({
       contentBase64: Buffer.from('solid part\nendsolid part\n').toString('base64')
@@ -102,6 +102,76 @@ describe('WorkspaceManager', () => {
         maxInputBytes: 1024
       })
     ).rejects.toThrow(/either path or scad/i);
+  });
+
+  it.each(['../lib.scad', 'dir/../lib.scad', '/lib.scad', 'lib.sh'])(
+    'rejects unsafe helper %s before running',
+    async (file) => {
+      await expect(
+        manager.resolveModelInput({ scad: 'cube(1);', files: { [file]: 'x' }, maxInputBytes: 20 })
+      ).rejects.toThrow();
+    }
+  );
+
+  it('enforces helper size limits for inline and workspace sources', async () => {
+    await manager.writeWorkspaceFile({ path: 'main.scad', content: 'cube(1);', maxInputBytes: 20 });
+    for (const source of [{ scad: 'cube(1);' }, { path: 'main.scad' }]) {
+      await expect(
+        manager.resolveModelInput({
+          ...source,
+          files: { 'lib.scad': 'x'.repeat(21) },
+          maxInputBytes: 20
+        })
+      ).rejects.toThrow(/limit/);
+      await expect(
+        manager.resolveModelInput({
+          ...source,
+          files: { 'lib.stl': { base64: Buffer.alloc(21).toString('base64') } },
+          maxInputBytes: 20
+        })
+      ).rejects.toThrow(/limit/);
+    }
+  });
+
+  it('rejects helper aliases that replace the main source', async () => {
+    await expect(
+      manager.resolveModelInput({
+        scad: 'cube(1);',
+        files: { './input.scad': 'cube(9);' },
+        maxInputBytes: 1024
+      })
+    ).rejects.toThrow(/source/);
+  });
+
+  it('bounds combined helper bytes and file counts', async () => {
+    const files = Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [`lib${i}.scad`, 'x'.repeat(20)])
+    );
+    await expect(
+      manager.resolveModelInput({ scad: 'cube(1);', files, maxInputBytes: 20 })
+    ).rejects.toThrow(/Combined.*limit/);
+    const manyFiles = Object.fromEntries(
+      Array.from({ length: 201 }, (_, i) => [`lib${i}.scad`, 'x'])
+    );
+    await expect(
+      manager.resolveModelInput({ scad: 'cube(1);', files: manyFiles, maxInputBytes: 1024 })
+    ).rejects.toThrow(/file limit/);
+  });
+
+  it('reports staging overflow rather than silently rendering with missing assets', async () => {
+    await manager.writeWorkspaceFile({
+      path: 'model/main.scad',
+      content: 'cube(1);',
+      maxInputBytes: 100
+    });
+    await manager.writeWorkspaceFile({
+      path: 'model/lib.scad',
+      content: 'x'.repeat(21),
+      maxInputBytes: 100
+    });
+    await expect(
+      manager.resolveModelInput({ path: 'model/main.scad', maxInputBytes: 20 })
+    ).rejects.toThrow(/limit/);
   });
 
   it('ignores excluded directories in listings', async () => {

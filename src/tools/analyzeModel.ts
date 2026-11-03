@@ -1,12 +1,11 @@
 import * as z from 'zod/v4';
+import { assertWithinBytes } from '../security/limits.js';
 import type { AnalyzeToolResult } from '../types/toolResults.js';
 import type { ToolDependencies } from './index.js';
 import { refineSingleSource, sourceFields } from './modelInput.js';
 import { errorRunResult } from './toolResponse.js';
 
-export const analyzeModelInputSchema = z
-  .object(sourceFields)
-  .superRefine(refineSingleSource);
+export const analyzeModelInputSchema = z.object(sourceFields).superRefine(refineSingleSource);
 
 export type AnalyzeModelInput = z.infer<typeof analyzeModelInputSchema>;
 
@@ -53,6 +52,8 @@ export async function handleAnalyzeModel(
       };
     }
 
+    assertWithinBytes('Analysis STL', result.data.byteLength, deps.config.limits.maxOutputBytes);
+    deps.signal?.throwIfAborted();
     const geometry = mergeGeometry(
       parseStlGeometry(result.data),
       geometryFromOpenScadSummary(result.summary)

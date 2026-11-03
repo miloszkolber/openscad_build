@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -43,5 +43,21 @@ describe('resolveSafePath', () => {
     await expect(resolveSafePath(root, 'link/secret.txt', { mustExist: true })).rejects.toThrow(
       /escapes/i
     );
+  });
+
+  it('does not create directories outside the root before rejecting a symlink', async () => {
+    const outside = path.join(tempParent, 'outside');
+    await mkdir(outside);
+    await symlink(outside, path.join(root, 'link'));
+    await expect(
+      resolveSafePath(root, 'link/new/file.scad', { createParent: true })
+    ).rejects.toThrow(/symlink|escapes/i);
+    await expect(access(path.join(outside, 'new'))).rejects.toThrow();
+  });
+
+  it('checks the resolved extension for existing aliases', async () => {
+    await writeFile(path.join(root, 'secret.sh'), 'secret');
+    await symlink('secret.sh', path.join(root, 'alias.scad'));
+    await expect(resolveSafePath(root, 'alias.scad', { mustExist: true })).rejects.toThrow();
   });
 });

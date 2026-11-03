@@ -12,7 +12,7 @@ export default function EditorPanel({className, style}: {className?: string, sty
       <Editor className="openscad-editor absolute-fill" defaultLanguage="openscad"
         value={model.source}
         onChange={pasted ? value => model.updatePastedSource(value ?? '') : undefined}
-        options={{...openscadEditorOptions, readOnly: !pasted, domReadOnly: !pasted, fontSize: 13, lineHeight: 20, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', lineNumbers: 'on', minimap: {enabled: false}, padding: {top: 12}, automaticLayout: true}} />
+        options={{...openscadEditorOptions, readOnly: !pasted || !!model.state.exporting, domReadOnly: !pasted || !!model.state.exporting, fontSize: 13, lineHeight: 20, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', lineNumbers: 'on', minimap: {enabled: false}, padding: {top: 12}, automaticLayout: true}} />
     </div>}
   </section>;
 }

@@ -1,6 +1,8 @@
 import { createServer, type Server } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
+import express from 'express';
+import { localhostHostValidation } from '@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js';
 import type { AppConfig } from '../config.js';
 import { createMcpAuthMiddleware } from '../security/mcpAuth.js';
 import type { ToolDependencies } from '../tools/index.js';
@@ -11,7 +13,17 @@ export async function startStreamableHttpServer(
   config: AppConfig,
   deps: ToolDependencies
 ): Promise<Server> {
-  const app = createMcpExpressApp({ host: config.host });
+  // The SDK's default JSON parser is limited to 100 KiB, below supported SCAD/mesh inputs.
+  // Parse first with a finite ceiling covering aggregate input plus base64 overhead.
+  const app = express();
+  if (['127.0.0.1', 'localhost', '::1'].includes(config.host)) app.use(localhostHostValidation());
+  const inputLimit = Math.min(config.limits.maxInputBytes * 8, 128 * 1024 * 1024);
+  app.use(
+    '/mcp',
+    createMcpAuthMiddleware(config),
+    express.json({ limit: Math.ceil(inputLimit * 1.5) + 1024 * 1024 })
+  );
+  app.use(createMcpExpressApp({ host: config.host }));
 
   registerWebRoutes(app, config);
 

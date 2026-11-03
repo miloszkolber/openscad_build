@@ -30,6 +30,7 @@ type FileIndex = { [name: string]: FileIndex | null };
 
 export function registerWebRoutes(app: Express, config: AppConfig): void {
   app.get('/healthz', async (_req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
     try {
       const workspaceStats = await stat(config.paths.workspaceDir);
       if (!workspaceStats.isDirectory()) {
@@ -52,6 +53,10 @@ export function registerWebRoutes(app: Express, config: AppConfig): void {
   });
 
   app.use('/models', async (req: Request, res: Response) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.status(405).setHeader('Allow', 'GET, HEAD').end();
+      return;
+    }
     const relativePath = decodeModelPath(req.path);
     if (!relativePath) {
       res.status(404).type('text/plain').send('Not found.');
@@ -82,6 +87,11 @@ export function registerWebRoutes(app: Express, config: AppConfig): void {
 
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-Content-Type-Options', 'nosniff');
+      // Model assets are data, including SVG. A direct navigation must not run scripts.
+      res.setHeader(
+        'Content-Security-Policy',
+        "sandbox; default-src 'none'; style-src 'unsafe-inline'"
+      );
       if (extension === '.scad') {
         res.type(SCAD_MIME_TYPE);
       }
@@ -111,12 +121,14 @@ export function registerWebRoutes(app: Express, config: AppConfig): void {
     res
       .status(503)
       .type('text/plain')
-      .send('The OpenSCAD browser UI is not built. Run npm run prepare:assets && npm run build:web.');
+      .send(
+        'The OpenSCAD browser UI is not built. Run npm run prepare:assets && npm run build:web.'
+      );
   });
 }
 
 export async function buildFileIndex(root: string): Promise<FileIndex> {
-  const index: FileIndex = {};
+  const index: FileIndex = Object.create(null);
   const entries = await readdir(root, { withFileTypes: true });
   entries.sort((left, right) => left.name.toLowerCase().localeCompare(right.name.toLowerCase()));
 

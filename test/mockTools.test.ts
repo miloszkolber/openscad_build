@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '../src/config.js';
 import { MockOpenScadRunner } from '../src/openscad/MockOpenScadRunner.js';
 import type { OpenScadRunner } from '../src/openscad/OpenScadRunner.js';
@@ -53,6 +53,33 @@ afterEach(async () => {
 });
 
 describe('mock tool handlers', () => {
+  it('rejects oversized intermediate STL for analysis and screenshots', async () => {
+    deps.config.limits.maxOutputBytes = 1;
+    for (const handler of [handleAnalyzeModel, handleScreenshot]) {
+      const result = await handler({ scad: 'cube(1);' }, deps);
+      expect(result.ok).toBe(false);
+      expect(result.stderr).toMatch(/limit/);
+    }
+  });
+
+  it('enforces image output limits even without outputPath', async () => {
+    // The mock STL fits this limit; a noisy 512px PNG exceeds it.
+    const stl = await new MockOpenScadRunner().export({
+      sourcePath: 'input.scad',
+      scad: 'cube(1);',
+      format: 'stl'
+    });
+    deps.config.limits.maxOutputBytes = stl.data.byteLength;
+    const result = await handleScreenshot({ scad: 'cube(1);' }, deps);
+    expect(result.ok).toBe(false);
+    expect(result.stderr).toMatch(/Screenshot image.*limit/);
+  });
+
+  it('does not start a render for an inline export missing outputPath', async () => {
+    const run = vi.spyOn(deps.runner, 'export');
+    await handleExportModel({ scad: 'cube(1);', format: 'stl' }, deps);
+    expect(run).not.toHaveBeenCalled();
+  });
   it('validates SCAD with the mock runner', async () => {
     const result = await handleValidate({ scad: 'cube(1);' }, deps);
     expect(result.ok).toBe(true);
@@ -96,7 +123,7 @@ describe('mock tool handlers', () => {
   it('passes workspace sources and staged files to the runner', async () => {
     await deps.workspace.writeWorkspaceFile({
       path: 'models/main.scad',
-      content: 'include "lib.scad"\ncube(size);',
+      content: 'include <lib.scad>\ncube(size);',
       maxInputBytes: 1024
     });
     await deps.workspace.writeWorkspaceFile({
@@ -122,10 +149,7 @@ describe('mock tool handlers', () => {
   });
 
   it('renders an inline PNG screenshot', async () => {
-    const result = await handleScreenshot(
-      { scad: 'cube(1);', width: 320, height: 240 },
-      deps
-    );
+    const result = await handleScreenshot({ scad: 'cube(1);', width: 320, height: 240 }, deps);
     expect(result.ok).toBe(true);
     expect(result.image).toMatchObject({
       format: 'png',

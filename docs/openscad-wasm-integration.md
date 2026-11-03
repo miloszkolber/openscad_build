@@ -56,18 +56,18 @@ Because the renderer starts from STL, screenshots are shaded mesh previews only.
 
 The runner writes the main source to `/job/<sourcePath>` in the Emscripten filesystem and copies MCP-provided helper files under the same virtual root. When a tool receives a workspace `path`, the source file's directory is staged beside it, preserving workspace-relative paths. Verified behavior:
 
-- `include "lib.scad"` resolves helper files copied beside the source.
+- `include <lib.scad>` resolves helper files copied beside the source.
 - `include <parts/lib.scad>` resolves helper files copied under the virtual root.
 - `import("meshes/tiny.stl")` resolves imported assets copied under the virtual root.
-- No job directory, artifact directory, or preview file is written to the host. Export and screenshot tools write only when the caller supplies `outputPath`.
+- No job directory, artifact directory, or preview file is written to the host. Exports write to the named output or beside the source by default. Screenshots write only when the caller supplies `outputPath`.
 
 The Docker image uses a read-only root filesystem. Required writes stay in the bind-mounted workspace or the in-memory Emscripten filesystem.
 
 ## Runtime Safety
 
-WASM execution runs inside a Node.js worker thread. If the render timeout expires, the main MCP process terminates the worker and returns an error diagnostic instead of waiting for a blocked `callMain()`.
+WASM execution runs inside a Node.js worker thread. If the render timeout expires, the main MCP process terminates the worker and returns an error diagnostic instead of waiting for a blocked `callMain()`. Screenshot mesh projection/encoding runs in a second cancellable worker, within the same semaphore permit and execution budget, so it cannot block HTTP or admit extra jobs.
 
-Input size is enforced before files are written into the Emscripten filesystem. Output size is enforced before an export or screenshot file is written. Very complex models may still exhaust WASM memory inside the worker; those failures are returned as OpenSCAD diagnostics or worker errors instead of exposing shell/native process details.
+Input size is enforced before files are written into the Emscripten filesystem, including decoded helper data. Combined source and helper inputs are limited to eight times the per-file limit or 128 MiB, whichever is smaller, with up to 200 helpers. Exceeding automatic staging limits fails explicitly rather than silently omitting files. Output limits apply to intermediate STL and inline images as well as saved files. Very complex models may still exhaust WASM memory inside the worker; those failures are returned as OpenSCAD diagnostics or worker errors instead of exposing shell/native process details.
 
 ## Libraries and Fonts
 

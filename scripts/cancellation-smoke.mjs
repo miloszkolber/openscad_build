@@ -101,7 +101,6 @@ await rpc('initialize', {
   clientInfo: { name: 'cancellation-smoke', version: '1' }
 });
 assert.equal((await rpc('tools/list', {})).tools.length, 8);
-const baseline = sample();
 const cube = await tool('openscad_export_model', {
   scad: 'cube([2,3,4]);',
   format: 'stl',
@@ -128,6 +127,8 @@ log('export_analysis_screenshot_pass', {
   triangles: geometry.summary.triangleCount,
   screenshotBytes: screenshot.image.sizeBytes
 });
+// Warm WASM and sharp first: native libraries may create persistent helper threads.
+const baseline = sample();
 
 const timedStart = performance.now();
 const timed = await heavy(undefined, limit * 2);

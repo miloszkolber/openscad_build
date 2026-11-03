@@ -184,9 +184,25 @@ describe('Streamable HTTP MCP smoke', () => {
     expect(model.status).toBe(200);
     expect(model.headers.get('content-type')).toContain('application/x-openscad');
     expect(await model.text()).toBe('cube(1);');
+    expect(model.headers.get('content-security-policy')).toContain('sandbox');
+    const post = await fetch(`${baseUrl}/models/models/cube.scad`, { method: 'POST' });
+    expect(post.status).toBe(405);
 
     const traversal = await fetch(`${baseUrl}/models/%2e%2e/secret.scad`);
     expect(traversal.status).toBe(404);
+  });
+
+  it('accepts supported source payloads above the SDK default 100 KiB limit', async () => {
+    const validate = await postJsonRpc({
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: {
+        name: 'openscad_validate',
+        arguments: { scad: '//'.padEnd(150_000, 'x') + '\ncube(1);' }
+      }
+    });
+    expect(validate.result.structuredContent.ok).toBe(true);
   });
 
   it('rejects /mcp without bearer token when MCP_AUTH_TOKEN is configured', async () => {

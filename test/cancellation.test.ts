@@ -3,6 +3,7 @@ import { Worker } from 'node:worker_threads';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenScadWasmRunner } from '../src/openscad/OpenScadWasmRunner.js';
 import { Semaphore } from '../src/security/limits.js';
+import { renderImageInWorker } from '../src/render/renderImageInWorker.js';
 
 vi.mock('node:worker_threads', () => ({ Worker: vi.fn() }));
 
@@ -80,6 +81,29 @@ describe('WASM worker lifetime', () => {
       'aborted'
     );
     expect(Worker).not.toHaveBeenCalled();
+  });
+
+  it('terminates image processing on cancellation and waits for actual exit', async () => {
+    const terminated = deferred<number>();
+    worker.terminate.mockReturnValue(terminated.promise);
+    const controller = new AbortController();
+    const task = renderImageInWorker(Buffer.alloc(0), {}, 100, 1024, controller.signal);
+    const rejection = expect(task).rejects.toThrow('aborted');
+    controller.abort();
+    await Promise.resolve();
+    expect(worker.terminate).toHaveBeenCalledOnce();
+    terminated.resolve(1);
+    await rejection;
+    expect(worker.eventNames()).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('times out image workers instead of blocking the HTTP process', async () => {
+    const task = renderImageInWorker(Buffer.alloc(0), {}, 100, 1024);
+    const rejection = expect(task).rejects.toThrow(/timed out/);
+    await vi.advanceTimersByTimeAsync(100);
+    await rejection;
+    expect(worker.terminate).toHaveBeenCalledOnce();
   });
 
   it('awaits actual worker termination before rejecting cancellation', async () => {

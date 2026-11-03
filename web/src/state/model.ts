@@ -30,12 +30,14 @@ export class Model {
     this.mutate(s => s.output = undefined);
   }
   setVar(name: string, value: any) {
+    if (this.state.exporting) return;
     // Keep the settled model visible while the next preview renders.
     this.mutate(s => s.params.vars = {...s.params.vars, [name]: value});
     this.render({isPreview: true, now: false});
   }
 
   async openMountedFile(path: string) {
+    if (this.state.exporting) return;
     const selection = ++this.selection;
     const relative = path.slice('/models/'.length).split('/').map(encodeURIComponent).join('/');
     const response = await fetch('/models/' + relative, {cache: 'no-store'});
@@ -47,6 +49,7 @@ export class Model {
   }
 
   openPastedCode(content = '') {
+    if (this.state.exporting || (this.state.params.mode === 'paste' && content === '')) return;
     ++this.selection;
     this.mutate(s => {
       s.params = {activePath: PASTED_PATH, sources: [{path: PASTED_PATH, content}], mode: 'paste'};
@@ -57,10 +60,12 @@ export class Model {
   }
 
   updatePastedSource(content: string) {
-    if (this.state.params.mode !== 'paste') return;
+    if (this.state.params.mode !== 'paste' || this.state.exporting) return;
     this.mutate(s => {
       const source = s.params.sources.find(source => source.path === PASTED_PATH);
       if (source) source.content = content;
+      s.params.vars = undefined;
+      s.parameterSet = undefined;
       s.error = undefined;
     });
     if (!content.trim()) {
@@ -135,6 +140,7 @@ export class Model {
         vars: this.state.params.vars, isPreview, mountArchives: true, renderFormat: 'off', streamsCallback: this.rawStreams})({now});
       if (generation !== this.renderGeneration) return;
       const display = await exportGlb(parseOff(await output.outFile.text()));
+      if (generation !== this.renderGeneration) return;
       if (this.state.output) {
         URL.revokeObjectURL(this.state.output.outFileURL);
         URL.revokeObjectURL(this.state.output.displayFileURL);

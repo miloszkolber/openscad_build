@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import * as z from 'zod/v4';
 import { EXPORT_FORMATS, extensionForFormat, mimeTypeForFormat } from '../openscad/formats.js';
+import { resolveSafePath } from '../workspace/safePaths.js';
 import type { ExportToolResult } from '../types/toolResults.js';
 import type { ToolDependencies } from './index.js';
 import { refineSingleSource, sourceFields } from './modelInput.js';
@@ -37,6 +38,15 @@ export async function handleExportModel(
       maxInputBytes: deps.config.limits.maxInputBytes
     });
 
+    const outputPath = resolveOutputPath(input, source.sourcePath);
+    const extension = extensionForFormat(input.format);
+    if (path.extname(outputPath).toLowerCase() !== extension) {
+      throw new Error(`Output path must end with ${extension} for ${input.format} exports.`);
+    }
+    await resolveSafePath(deps.config.paths.workspaceDir, outputPath, {
+      allowedExtensions: new Set([extension])
+    });
+
     const result = await deps.semaphore.run(
       () =>
         deps.runner.export(
@@ -58,15 +68,11 @@ export async function handleExportModel(
       return result;
     }
 
-    const outputPath = resolveOutputPath(input, source.sourcePath);
-    const extension = extensionForFormat(input.format);
-    if (path.extname(outputPath).toLowerCase() !== extension) {
-      throw new Error(`Output path must end with ${extension} for ${input.format} exports.`);
-    }
     if (input.path && outputPath === input.path) {
       throw new Error('Output path must not overwrite the SCAD source.');
     }
 
+    deps.signal?.throwIfAborted();
     const output = await deps.workspace.writeWorkspaceBinary({
       path: outputPath,
       data: result.data,

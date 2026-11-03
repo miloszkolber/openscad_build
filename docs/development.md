@@ -16,6 +16,16 @@ npm test
 npm run lint
 ```
 
+`npm test` builds worker entry points and runs unit/HTTP regressions, including decoded input bounds, source collisions, symlink writes, screenshot limits/cancellation and browser debounce lifetime. The full build reports expected bundle-size warnings for Monaco and WASM.
+
+For real WASM worker cancellation, run `scripts/cancellation-smoke.mjs` only inside an otherwise idle disposable server container, configured with `MAX_PARALLEL_JOBS=1` and `MAX_RENDER_MS=4000`. It checks export geometry, inline screenshots, timeout ceilings, active/queued cancellation and permit reuse. For example, after building and starting that disposable server:
+
+```sh
+docker exec -i test-openscad node --input-type=module < scripts/cancellation-smoke.mjs
+```
+
+The browser check can also be exercised with the provided MCP Chromium: mount the documented cube fixture, confirm mounted source is read-only, change width to 21 and inspect the downloaded STL bounds, then exercise paste edits, a relative include, invalid source and recovery. Do not launch a second browser to run QA.
+
 Use the mock backend when you do not need real WASM behavior:
 
 ```bash

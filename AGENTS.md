@@ -4,7 +4,7 @@ Development notes for agents working on `openscad-wasm-mcp`.
 
 ## Project Contract
 
-This project is an OpenSCAD MCP server plus a browser UI. Both run OpenSCAD through `openscad-wasm` in WebAssembly. Do not add a native OpenSCAD binary dependency, do not automate the browser-based OpenSCAD UI, and do not expose arbitrary shell commands or raw OpenSCAD CLI args.
+This project is an OpenSCAD MCP server plus a browser UI. The server uses the `openscad-wasm` npm package and the browser uses a checksum-pinned web WASM build. Do not add a native OpenSCAD binary dependency, do not use browser UI automation as the model execution backend, and do not expose arbitrary shell commands or raw OpenSCAD CLI args. Browser interaction checks use the provided Chromium tools.
 
 The service must remain runnable through Docker Compose with:
 
@@ -67,7 +67,7 @@ Docker Compose binds only `127.0.0.1:3333:3333` and uses a read-only root filesy
 - `src/server/transport.ts`: Streamable HTTP wiring and MCP auth.
 - `src/server/webRoutes.ts`: browser UI static assets, `/api/files`, `/models/*`, and `/healthz`.
 - `src/tools/`: zod schemas and MCP tool handlers.
-- `src/render/`: STL mesh image renderer and camera validation.
+- `src/render/`: cancellable STL mesh image worker, renderer and camera validation. Screenshot image processing holds the same job permit and execution deadline as its WASM export.
 - `src/openscad/OpenScadRunner.ts`: runner interface and shared runner result types.
 - `src/openscad/OpenScadWasmRunner.ts`: real server-side `openscad-wasm` integration boundary.
 - `src/openscad/MockOpenScadRunner.ts`: deterministic runner for tests and development.
@@ -101,6 +101,7 @@ Preserve these constraints when adding tools or options:
 - Build args only through `src/openscad/args.ts`.
 - Keep `-D` define keys restricted to safe identifiers.
 - Enforce input size, output size, timeout, and concurrency limits.
+- Validate decoded helper sizes, aggregate size/count, safe relative paths and main-source collisions before calling the runner. Never silently omit dependencies on staging overflow.
 - Do not write temporary job directories, artifacts, or preview tokens.
 - Browser model routes must reject symlinks and excluded directories such as `.git`, `.tmp`, and `node_modules`.
 - MCP auth applies only to `/mcp`. The browser UI and read-only model routes remain public; document that a reverse proxy is required for private repositories.

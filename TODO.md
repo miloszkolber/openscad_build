@@ -8,7 +8,7 @@ This checklist tracks remaining work after the browser merge. The project builds
 - [x] Support browsing SCAD files under `WORKSPACE_DIR` and pasting code without writing files.
 - [x] Keep browser rendering and STL export client-side.
 - [x] Verify the browser UI in MCP Chromium against a mounted model repository.
-- [ ] Re-run the optional CDP browser check against the merged service.
+- [x] Recheck mounted sources, Customizer-to-STL dimensions, paste mode, rapid edits, relative includes and invalid-source recovery through the provided MCP Chromium. The optional direct-CDP runner is repaired but was not used.
 
 ## Agent Tools
 
@@ -27,3 +27,10 @@ This checklist tracks remaining work after the browser merge. The project builds
 - [x] Update the host deployment to run one merged service instead of separate MCP and browser containers.
 - [x] Remove the host cleanup script and cron entry.
 - [x] Remove stale `.tmp` and artifact directories from the model repository.
+
+## Merge review
+
+- [x] Restore input/output limits, source fidelity, and side-effect-free path rejection with regressions.
+- [x] Check screenshot cancellation/concurrency and browser paste/export recovery.
+- [x] Repair verification scripts and stale workflow/deployment references.
+- [ ] Rebuild, verify the assembled service, and record remaining limits.

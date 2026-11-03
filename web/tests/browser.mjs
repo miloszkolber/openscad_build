@@ -73,7 +73,7 @@ try {
   await page.waitForFunction(() => window.monaco.editor.getEditors()[0].getOption(window.monaco.editor.EditorOption.readOnly) === false);
   await page.evaluate(() => window.monaco.editor.getModels()[0].setValue('cube([5, 6, 7]);'));
   await page.waitForFunction(() => document.querySelector('model-viewer')?.getDimensions?.().x === 5);
-  const pasteIndex = await (await fetch(process.env.APP_URL || 'http://127.0.0.1:3333/api/files')).json();
+  const pasteIndex = await page.evaluate(async () => (await fetch('/api/files')).json());
   assert.equal(JSON.stringify(pasteIndex).includes('pasted.scad'), false, 'Pasted code is not written to the model directory');
   console.log('Pasted code renders from memory without writing files');
   const layout = await page.evaluate(() => ({

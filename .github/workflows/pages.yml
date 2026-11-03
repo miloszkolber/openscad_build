@@ -6,6 +6,7 @@ on:
     paths:
       - "site/**"
       - "docker-compose.yml"
+      - "docker-compose_prebuilt.yml"
       - ".env.example"
       - ".github/workflows/pages.yml"
   workflow_dispatch:

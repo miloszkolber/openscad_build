@@ -20,6 +20,7 @@
     "build:server": "tsc -p tsconfig.build.json",
     "build:web": "webpack --config web/webpack.config.js",
     "check:web": "tsc -p web/tsconfig.json --noEmit",
+    "pretest": "npm run build:server",
     "test": "vitest run",
     "test:browser": "node web/tests/browser.mjs",
     "lint": "eslint .",

@@ -1,6 +1,6 @@
 # openscad-wasm-mcp
 
-An OpenSCAD Model Context Protocol (MCP) server and browser UI. Both run OpenSCAD through WebAssembly (`openscad-wasm`), so no native OpenSCAD installation is required.
+An OpenSCAD Model Context Protocol (MCP) server and browser UI. The server uses the `openscad-wasm` npm package and the browser uses a checksum-pinned web WASM build, so no native OpenSCAD installation is required.
 
 The service has two surfaces on one port:
 
@@ -35,6 +35,8 @@ volumes:
 - `openscad_analyze_model`: Compute the bounding box and triangle count.
 
 All OpenSCAD tools accept either `path` (workspace-relative SCAD file) or `scad` (inline source). When `path` is used, files beside the source are staged automatically for relative `include` and `import` statements. Extra files can be supplied with `files`.
+
+Input limits apply to source and decoded helper files. A job accepts up to 200 helpers and a combined input size of eight times `MAX_INPUT_MB` or 128 MiB, whichever is smaller. Staging fails explicitly on overflow. Helpers cannot replace the main source. HTTP payloads above the SDK's default 100 KiB are supported within a finite body limit.
 
 `openscad_export_model` defaults the output path to the source path with the format extension. Inline source exports require an explicit `outputPath`.
 
@@ -73,7 +75,7 @@ Copy `.env.example` to `.env` and adjust the values.
 | `OPENSCAD_BACKEND` | `wasm` | `wasm` or `mock` |
 | `MCP_AUTH_TOKEN` | unset | Require `Authorization: Bearer <token>` on `/mcp` |
 
-`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Disconnecting an HTTP tool request or cancelling it through the MCP request signal terminates its WASM worker. Queue waiting time is not included in the execution timeout.
+`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Screenshots share this execution budget and concurrency permit across WASM export and mesh-image processing, which run in cancellable workers. Disconnecting an HTTP tool request or cancelling it through the MCP request signal terminates active workers. Queue waiting time is not included in the execution timeout.
 
 The browser UI and model files are public on the HTTP port. Protect them at a reverse proxy if the model repository is not public.
 
@@ -94,6 +96,8 @@ Use the mock backend for local development that should not depend on real WASM b
 ```bash
 OPENSCAD_BACKEND=mock npm run dev
 ```
+
+Build the server workers first with `npm run build:server` when running from TypeScript source. Tests build these workers automatically.
 
 Run the optional browser check against an already authorized CDP endpoint:
 

@@ -86,7 +86,7 @@ export type RenderArgs = {
 
 function formatValue(any: any): string {
   if (typeof any === 'string') {
-    return `"${any}"`;
+    return JSON.stringify(any);
   } else if (any instanceof Array) {
     return `[${any.map(formatValue).join(', ')}]`;
   } else {

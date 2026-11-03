@@ -5,7 +5,9 @@ const URL_LIKE = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 
 export function assertSafeIdentifier(name: string): void {
   if (!SAFE_IDENTIFIER.test(name)) {
-    throw new Error(`Unsafe OpenSCAD define name "${name}". Use identifiers like width or box_height.`);
+    throw new Error(
+      `Unsafe OpenSCAD define name "${name}". Use identifiers like width or box_height.`
+    );
   }
 }
 
@@ -30,8 +32,7 @@ export function assertSafeRelativePath(input: string): void {
     throw new Error('Absolute paths are not allowed.');
   }
 
-  const normalized = path.posix.normalize(input);
-  if (normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')) {
+  if (input.split('/').includes('..')) {
     throw new Error('Path traversal is not allowed.');
   }
 }

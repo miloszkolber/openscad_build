@@ -2,6 +2,8 @@ import { mkdir, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs
 import path from 'node:path';
 import { assertWithinBytes, DEFAULT_ALLOWED_EXTENSIONS } from '../security/limits.js';
 import type { FileInputContent } from '../openscad/OpenScadRunner.js';
+import { decodeFileContent } from '../openscad/fileContent.js';
+import { assertSafeRelativePath } from '../security/sanitize.js';
 import { relativePosixPath, type WorkspacePaths } from './paths.js';
 import { resolveSafePath } from './safePaths.js';
 
@@ -60,15 +62,11 @@ export class WorkspaceManager {
     }
 
     if (input.scad !== undefined) {
-      assertWithinBytes(
-        'SCAD input',
-        Buffer.byteLength(input.scad, 'utf8'),
-        input.maxInputBytes
-      );
+      assertWithinBytes('SCAD input', Buffer.byteLength(input.scad, 'utf8'), input.maxInputBytes);
       return {
         scad: input.scad,
         sourcePath: 'input.scad',
-        files: input.files ?? {}
+        files: this.validateInputs('input.scad', input.scad, input.files ?? {}, input.maxInputBytes)
       };
     }
 
@@ -90,11 +88,49 @@ export class WorkspaceManager {
       input.maxInputBytes
     );
 
+    const scad = await readFile(sourceAbsolute, 'utf8');
     return {
-      scad: await readFile(sourceAbsolute, 'utf8'),
+      scad,
       sourcePath,
-      files: { ...staged, ...(input.files ?? {}) }
+      files: this.validateInputs(
+        sourcePath,
+        scad,
+        { ...staged, ...(input.files ?? {}) },
+        input.maxInputBytes
+      )
     };
+  }
+
+  private validateInputs(
+    sourcePath: string,
+    scad: string,
+    files: Record<string, FileInputContent>,
+    maxInputBytes: number
+  ): Record<string, FileInputContent> {
+    let total = Buffer.byteLength(scad, 'utf8');
+    assertWithinBytes('SCAD input', total, maxInputBytes);
+    const normalized: Record<string, FileInputContent> = Object.create(null);
+    const entries = Object.entries(files);
+    if (entries.length > MAX_STAGED_FILES)
+      throw new Error(`Input file count exceeds the ${MAX_STAGED_FILES} file limit.`);
+    for (const [requested, content] of entries) {
+      assertSafeRelativePath(requested);
+      const key = path.posix.normalize(requested);
+      if (key === sourcePath) throw new Error('Helper files must not replace the main source.');
+      if (Object.hasOwn(normalized, key)) throw new Error(`Duplicate helper path: ${key}`);
+      if (!STAGED_EXTENSIONS.has(path.posix.extname(key).toLowerCase()))
+        throw new Error(`Helper extension is not allowed: ${key}`);
+      const data = decodeFileContent(content);
+      assertWithinBytes(`File ${key}`, data.byteLength, maxInputBytes);
+      total += data.byteLength;
+      normalized[key] = content;
+    }
+    assertWithinBytes(
+      'Combined model inputs',
+      total,
+      Math.min(maxInputBytes * 8, 128 * 1024 * 1024)
+    );
+    return normalized;
   }
 
   async listFiles(relativePath = '.'): Promise<WorkspaceFileInfo[]> {
@@ -213,9 +249,6 @@ export class WorkspaceManager {
     const walk = async (current: string): Promise<void> => {
       const entries = await readdir(current, { withFileTypes: true });
       for (const entry of entries) {
-        if (count >= MAX_STAGED_FILES || totalBytes >= totalLimit) {
-          return;
-        }
         if (entry.isSymbolicLink()) {
           continue;
         }
@@ -239,9 +272,12 @@ export class WorkspaceManager {
           continue;
         }
         const fileStats = await stat(fullPath);
-        if (fileStats.size > maxInputBytes || totalBytes + fileStats.size > totalLimit) {
-          continue;
-        }
+        assertWithinBytes(`File ${relativePath}`, fileStats.size, maxInputBytes);
+        assertWithinBytes('Staged model inputs', totalBytes + fileStats.size, totalLimit);
+        if (count >= MAX_STAGED_FILES)
+          throw new Error(
+            `Staged inputs exceed the ${MAX_STAGED_FILES} file limit. Use a smaller model directory or inline scad with explicit files.`
+          );
         const data = await readFile(fullPath);
         files[relativePath] = TEXT_EXTENSIONS.has(extension)
           ? data.toString('utf8')
