@@ -1,12 +1,11 @@
 import type { DefineValue } from './args.js';
-import type { ExportFormat, PreviewFormat } from './formats.js';
+import type { ExportFormat } from './formats.js';
 import type { Diagnostic } from '../types/toolResults.js';
 
 export type FileInputContent = string | { base64: string } | { contentBase64: string };
 
 export interface OpenScadBaseInput {
-  jobId: string;
-  jobDir: string;
+  sourcePath: string;
   scad: string;
   files?: Record<string, FileInputContent>;
   defines?: Record<string, DefineValue>;
@@ -30,7 +29,7 @@ export interface OpenScadRunResult {
 }
 
 export interface OpenScadExportResult extends OpenScadRunResult {
-  format: ExportFormat | PreviewFormat;
+  format: ExportFormat;
   filename: string;
   data: Buffer;
   summary?: unknown;

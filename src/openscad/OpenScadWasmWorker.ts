@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { createOpenSCAD, type OpenSCAD, type WasmFs } from 'openscad-wasm';
 import { assertSafeRelativePath } from '../security/sanitize.js';
-import { decodeFileContent } from '../workspace/WorkspaceManager.js';
+import { decodeFileContent } from './fileContent.js';
 import { buildOpenScadArgs } from './args.js';
 import { extensionForFormat } from './formats.js';
 import {
@@ -75,9 +75,15 @@ async function createContext(input: OpenScadBaseInput): Promise<WasmContext> {
   });
 
   const openscad = api.getInstance();
-  const virtualRoot = `/job-${input.jobId}`;
+  const virtualRoot = '/job';
   ensureWasmDir(openscad.FS, virtualRoot);
-  writeWasmInputs(openscad.FS, virtualRoot, input.scad, input.files ?? {});
+  writeWasmInputs(
+    openscad.FS,
+    virtualRoot,
+    input.sourcePath,
+    input.scad,
+    input.files ?? {}
+  );
 
   return { openscad, virtualRoot, stdout, stderr };
 }
@@ -86,7 +92,7 @@ async function runValidate(input: OpenScadValidateInput): Promise<OpenScadRunRes
   const context = await createContext(input);
   const outputPath = `${context.virtualRoot}/validation.csg`;
   const args = buildOpenScadArgs({
-    inputPath: `${context.virtualRoot}/input.scad`,
+    inputPath: `${context.virtualRoot}/${input.sourcePath}`,
     outputPath,
     format: 'csg',
     defines: input.defines,
@@ -107,7 +113,7 @@ async function runExport(input: OpenScadExportInput): Promise<OpenScadExportResu
   const outputPath = `${context.virtualRoot}/${filename}`;
   const summaryPath = input.summaryFile ? `${context.virtualRoot}/summary.json` : undefined;
   const args = buildOpenScadArgs({
-    inputPath: `${context.virtualRoot}/input.scad`,
+    inputPath: `${context.virtualRoot}/${input.sourcePath}`,
     outputPath,
     format: input.format,
     defines: input.defines,
@@ -224,10 +230,18 @@ function readSummary(context: WasmContext, summaryPath: string | undefined): unk
 function writeWasmInputs(
   fs: WasmFs,
   virtualRoot: string,
+  sourcePath: string,
   scad: string,
   files: Record<string, FileInputContent>
 ): void {
-  fs.writeFile(`${virtualRoot}/input.scad`, scad);
+  assertSafeRelativePath(sourcePath);
+  const sourceParts = sourcePath.split('/').filter(Boolean);
+  let sourceDirectory = virtualRoot;
+  for (const dir of sourceParts.slice(0, -1)) {
+    sourceDirectory = `${sourceDirectory}/${dir}`;
+    ensureWasmDir(fs, sourceDirectory);
+  }
+  fs.writeFile(`${virtualRoot}/${sourcePath}`, scad);
 
   for (const [requestedPath, contents] of Object.entries(files)) {
     assertSafeRelativePath(requestedPath);

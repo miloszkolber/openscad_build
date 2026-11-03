@@ -13,6 +13,12 @@ Streamable HTTP endpoint:
 http://127.0.0.1:3333/mcp
 ```
 
+Browser UI:
+
+```text
+http://127.0.0.1:3333/
+```
+
 List tools:
 
 ```bash
@@ -39,7 +45,8 @@ curl -s http://127.0.0.1:3333/mcp \
       "name": "openscad_export_model",
       "arguments": {
         "scad": "cube([10, 20, 5]);",
-        "format": "stl"
+        "format": "stl",
+        "outputPath": "cube.stl"
       }
     }
   }'

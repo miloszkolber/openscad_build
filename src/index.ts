@@ -17,6 +17,4 @@ process.on('SIGTERM', () => {
 console.log(
   `openscad-wasm-mcp listening on http://${config.host}:${config.port}/mcp using ${config.backend} backend`
 );
-if (config.preview.enabled) {
-  console.log(`Preview links use PUBLIC_BASE_URL=${config.preview.publicBaseUrl}`);
-}
+console.log(`OpenSCAD browser UI: http://${config.host}:${config.port}/`);

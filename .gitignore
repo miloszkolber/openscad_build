@@ -3,6 +3,8 @@ dist/
 coverage/
 .env
 /workspace
+web/.assets/
+web/public/fonts.zip
 !.gitkeep
 npm-debug.log*
 .DS_Store

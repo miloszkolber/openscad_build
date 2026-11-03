@@ -60,7 +60,7 @@ describe('cancellable concurrency permits', () => {
 
 describe('WASM worker lifetime', () => {
   let worker: EventEmitter & { terminate: ReturnType<typeof vi.fn> };
-  const input = { jobId: 'test', jobDir: '/tmp/test', scad: 'cube(1);', format: 'stl' as const };
+  const input = { sourcePath: 'test.scad', scad: 'cube(1);', format: 'stl' as const };
 
   beforeEach(() => {
     vi.useFakeTimers();

@@ -10,9 +10,9 @@ Common local commands:
 
 ```bash
 npm install
-npm run dev
-npm test
+npm run prepare:assets
 npm run build
+npm test
 npm run lint
 ```
 
@@ -50,7 +50,7 @@ When `MCP_AUTH_TOKEN` is set, every `/mcp` request must include:
 Authorization: Bearer <token>
 ```
 
-`/healthz`, preview viewer routes, and other non-MCP endpoints stay open unless you protect them separately at a reverse proxy.
+`/healthz`, the browser UI, and read-only model routes stay open unless you protect them separately at a reverse proxy.
 
 ### Hermes Agent
 
@@ -120,6 +120,27 @@ Build first with `npm run build`, or use `npm run dev:stdio` while developing.
 
 ### Raw JSON-RPC Example
 
+Export a workspace source next to the source file:
+
+```bash
+curl -s http://127.0.0.1:3333/mcp \
+  -H 'content-type: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "openscad_export_model",
+      "arguments": {
+        "path": "models/cube.scad",
+        "format": "stl"
+      }
+    }
+  }'
+```
+
+Export inline source to an explicit path:
+
 ```bash
 curl -s http://127.0.0.1:3333/mcp \
   -H 'content-type: application/json' \
@@ -131,7 +152,8 @@ curl -s http://127.0.0.1:3333/mcp \
       "name": "openscad_export_model",
       "arguments": {
         "scad": "cube([10, 20, 5]);",
-        "format": "stl"
+        "format": "stl",
+        "outputPath": "models/cube.stl"
       }
     }
   }'
@@ -148,10 +170,11 @@ curl -s http://127.0.0.1:3333/mcp \
     "id": 1,
     "method": "tools/call",
     "params": {
-      "name": "openscad_export_model",
+      "name": "openscad_screenshot",
       "arguments": {
-        "scad": "cube([10, 20, 5]);",
-        "format": "stl"
+        "path": "models/cube.scad",
+        "width": 800,
+        "height": 600
       }
     }
   }'
@@ -159,13 +182,13 @@ curl -s http://127.0.0.1:3333/mcp \
 
 ## Tool Payload Examples
 
-Example validation or export payload with helper files and defines:
+Example validation, export, screenshot, or analysis payload with helper files and defines:
 
 ```json
 {
-  "scad": "include <parts/hinge.scad>\nbox_width = 30;\ncube([box_width, 20, 8]);",
+  "path": "models/hinge.scad",
   "files": {
-    "parts/hinge.scad": "// helper file"
+    "models/parts/hinge.scad": "// helper file"
   },
   "defines": {
     "box_width": 30,
@@ -177,4 +200,22 @@ Example validation or export payload with helper files and defines:
 }
 ```
 
-This shape applies to tools that accept inline SCAD input, such as `openscad_validate`, `openscad_export_model`, `openscad_render_preview`, and `openscad_analyze_model`.
+When `path` is used, files beside the source are staged automatically. The explicit `files` map adds or overrides files under the same virtual workspace. Inline `scad` input works the same way and uses `input.scad` as the virtual source path.
+
+Screenshot-only options:
+
+```json
+{
+  "path": "models/hinge.scad",
+  "width": 800,
+  "height": 600,
+  "camera": "100,-100,80,0,0,0",
+  "projection": "perspective",
+  "viewAll": true,
+  "autoCenter": true,
+  "format": "png",
+  "outputPath": "models/hinge.png"
+}
+```
+
+`outputPath` is optional. Without it, the image is returned inline and no file is written.

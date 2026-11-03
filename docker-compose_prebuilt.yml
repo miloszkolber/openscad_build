@@ -7,18 +7,13 @@ services:
     environment:
       PORT: ${PORT:-3333}
       HOST: ${HOST:-0.0.0.0}
-      WORKSPACE_DIR: ${WORKSPACE_DIR:-./openscad-mcp/ws}
-      ARTIFACT_DIR: ${ARTIFACT_DIR:-./openscad-mcp/artifacts}
-      JOB_TMP_DIR: ${JOB_TMP_DIR:-./openscad-mcp/job_tmp}
+      WORKSPACE_DIR: ${WORKSPACE_DIR:-/workspace}
+      WEB_DIR: ${WEB_DIR:-/app/dist/web}
       MAX_RENDER_MS: ${MAX_RENDER_MS:-30000}
       MAX_OUTPUT_MB: ${MAX_OUTPUT_MB:-50}
-      MAX_INPUT_MB: ${MAX_INPUT_MB:-10}
+      MAX_INPUT_MB: ${MAX_INPUT_MB:-50}
       MAX_PARALLEL_JOBS: ${MAX_PARALLEL_JOBS:-2}
-      CLEANUP_JOBS: ${CLEANUP_JOBS:-true}
       OPENSCAD_BACKEND: ${OPENSCAD_BACKEND:-wasm}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL} # mandatory
-      PREVIEW_TTL_SECONDS: ${PREVIEW_TTL_SECONDS:-3600}
-      PREVIEW_ENABLED: ${PREVIEW_ENABLED:-true}
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     ports:
       - '127.0.0.1:3333:3333'
@@ -31,3 +26,15 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3333/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        ]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

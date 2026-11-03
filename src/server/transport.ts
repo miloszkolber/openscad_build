@@ -5,7 +5,7 @@ import type { AppConfig } from '../config.js';
 import { createMcpAuthMiddleware } from '../security/mcpAuth.js';
 import type { ToolDependencies } from '../tools/index.js';
 import { createMcpServer } from './createMcpServer.js';
-import { registerPreviewRoutes } from './previewRoutes.js';
+import { registerWebRoutes } from './webRoutes.js';
 
 export async function startStreamableHttpServer(
   config: AppConfig,
@@ -13,11 +13,7 @@ export async function startStreamableHttpServer(
 ): Promise<Server> {
   const app = createMcpExpressApp({ host: config.host });
 
-  app.get('/healthz', (_req, res) => {
-    res.json({ ok: true, name: 'openscad-wasm-mcp' });
-  });
-
-  registerPreviewRoutes(app, deps);
+  registerWebRoutes(app, config);
 
   const requireMcpAuth = createMcpAuthMiddleware(config);
 

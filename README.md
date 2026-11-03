@@ -1,71 +1,115 @@
 # openscad-wasm-mcp
 
-An OpenSCAD Model Context Protocol (MCP) server that runs OpenSCAD in Node.js/TypeScript using WebAssembly (`openscad-wasm`). No native OpenSCAD installation on the host is required.
+An OpenSCAD Model Context Protocol (MCP) server and browser UI. Both run OpenSCAD through WebAssembly (`openscad-wasm`), so no native OpenSCAD installation is required.
+
+The service has two surfaces on one port:
+
+- `/mcp` exposes agent tools for validating, exporting, screenshotting, analyzing, and editing SCAD files in a mounted model workspace.
+- `/` serves a browser UI for browsing the same workspace, reading SCAD sources, changing Customizer properties, rendering in browser WebAssembly, pasting code, and downloading STL files.
+
+There are no temporary preview links, artifact stores, job directories, or cleanup scripts. The workspace is the model repository itself.
 
 ## Quick Start
-
-### 1. Run with Docker Compose
-
-By default, the server runs in Docker with restricted privileges:
 
 ```bash
 docker compose up --build
 ```
 
-The MCP server listens on `http://127.0.0.1:3333/mcp`.
+- Browser UI: `http://127.0.0.1:3333/`
+- MCP endpoint: `http://127.0.0.1:3333/mcp`
 
-### 2. Configure MCP Client
+By default the container mounts `./workspace` at `/workspace`. Point `WORKSPACE_DIR` and the Compose volume at your model repository, for example:
 
-Add the server to your MCP client configuration (e.g., `claude_desktop_config.json`):
-
-**Using HTTP Transport (default):**
-```json
-{
-  "mcpServers": {
-    "openscad-wasm": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/client-cli", "http://127.0.0.1:3333/mcp"]
-    }
-  }
-}
+```yaml
+volumes:
+  - /path/to/models:/workspace:rw
 ```
 
-## Available Tools
+## MCP Tools
 
-### OpenSCAD Tools
-- `openscad_validate`: Validates SCAD code and returns syntax/logical diagnostics.
-- `openscad_export_model`: Exports model to `stl`, `3mf`, `off`, `csg`, `dxf`, or `svg`.
-- `openscad_render_preview`: Generates a server-side WebP render or an interactive 3D preview link.
-- `openscad_create_preview_link`: Generates a URL to open a browser-based interactive 3D viewer.
-- `openscad_analyze_model`: Computes the model's bounding box and triangle count.
+### OpenSCAD tools
 
-### Workspace Tools
-- `workspace_list_files`: Lists files in the container workspace.
-- `workspace_read_file`: Reads a file from the workspace.
-- `workspace_write_file`: Writes a file to the workspace.
-- `workspace_delete_file`: Deletes a file from the workspace.
+- `openscad_validate`: Validate a workspace SCAD file or inline source and return diagnostics.
+- `openscad_export_model`: Export to `stl`, `3mf`, `off`, `csg`, `dxf`, or `svg`. Writes the output to a workspace path.
+- `openscad_screenshot`: Render a shaded PNG or WebP image of the model and return it inline. Optionally also write it to a workspace path.
+- `openscad_analyze_model`: Compute the bounding box and triangle count.
 
-## Artifacts
+All OpenSCAD tools accept either `path` (workspace-relative SCAD file) or `scad` (inline source). When `path` is used, files beside the source are staged automatically for relative `include` and `import` statements. Extra files can be supplied with `files`.
 
-Renders and model exports are saved under `./workspace/artifacts` on the host. The MCP tool responses return metadata: `path`, `filename`, `format`, `mimeType`, `sizeBytes`, and `sha256`.
+`openscad_export_model` defaults the output path to the source path with the format extension. Inline source exports require an explicit `outputPath`.
+
+### Workspace tools
+
+- `workspace_list_files`: List files in the model workspace.
+- `workspace_read_file`: Read an allowed file.
+- `workspace_write_file`: Write an allowed text file.
+- `workspace_delete_file`: Delete an allowed file.
+
+Paths are relative to the workspace root. The server never exposes shell execution or raw OpenSCAD CLI arguments.
+
+## Browser UI
+
+The browser lists SCAD files recursively from the mounted workspace. Select a file to read its source, adjust Customizer properties, and render it with the OpenSCAD WebAssembly engine in the browser. Download STL exports client-side.
+
+- Mounted sources are read-only.
+- `Paste code` opens an in-memory editor for SCAD that is never written to the workspace.
+- Relative includes and imported assets resolve from the mounted workspace.
+- Temporary staging, Git metadata, symlinks, and `job-*` files are not exposed.
 
 ## Configuration
 
-Customize runtime limits (memory, timeouts, directories) by copying `.env.example` to `.env` and editing the environment variables.
+Copy `.env.example` to `.env` and adjust the values.
 
-`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Queue waiting time is not included in the execution timeout.
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3333` | HTTP port |
+| `HOST` | `0.0.0.0` | Bind address |
+| `WORKSPACE_DIR` | `/workspace` | Mounted model repository |
+| `WEB_DIR` | `<cwd>/dist/web` | Built browser assets |
+| `MAX_RENDER_MS` | `30000` | WASM execution ceiling |
+| `MAX_OUTPUT_MB` | `50` | Export and image output limit |
+| `MAX_INPUT_MB` | `50` | Per-file input limit |
+| `MAX_PARALLEL_JOBS` | `2` | Concurrent WASM jobs |
+| `OPENSCAD_BACKEND` | `wasm` | `wasm` or `mock` |
+| `MCP_AUTH_TOKEN` | unset | Require `Authorization: Bearer <token>` on `/mcp` |
 
-Disconnecting an HTTP tool request or cancelling it through the MCP request signal removes queued rendering work or terminates its running WASM worker. The concurrency permit is held until the worker exits, and job staging is cleaned up. Completed artifacts and preview tokens are not deleted by cancellation. These guarantees apply to the server's tool calls, not independent processes launched outside the server.
+`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Disconnecting an HTTP tool request or cancelling it through the MCP request signal terminates its WASM worker. Queue waiting time is not included in the execution timeout.
 
-After building, `scripts/cancellation-smoke.mjs` exercises real WASM output, geometry, previews, timeout ceilings and active/queued HTTP cancellation. Pipe it to Node in an otherwise idle disposable server container with `MAX_PARALLEL_JOBS=1` and a short `MAX_RENDER_MS` (for example, 4000). It reads the container's server process and workspace to verify worker exit and staging cleanup. Do not run it against a shared production container.
+The browser UI and model files are public on the HTTP port. Protect them at a reverse proxy if the model repository is not public.
+
+## Development
+
+```bash
+npm install
+npm run prepare:assets
+npm run build
+npm test
+npm run lint
+```
+
+`npm run prepare:assets` downloads checksum-verified OpenSCAD WebAssembly and Liberation fonts for the browser UI. `npm run build` compiles the server and the browser bundle into `dist/`.
+
+Use the mock backend for local development that should not depend on real WASM behavior:
+
+```bash
+OPENSCAD_BACKEND=mock npm run dev
+```
+
+Run the optional browser check against an already authorized CDP endpoint:
+
+```bash
+APP_URL=http://127.0.0.1:3333 BROWSER_URL=http://127.0.0.1:9222 npm run test:browser
+```
+
+The runner never launches a browser. It expects a mounted `browser-check/main.scad` fixture with `width = 18; // [1:1:50]` followed by `cube([width, 7, 9]);`.
 
 ## Known Limitations
 
 - **Performance**: Complex models can be slow or memory-intensive inside WebAssembly.
-- **Visuals**: WebP previews do not preserve OpenSCAD colors, GUI helpers, or 2D camera perspectives.
-- **Assets & Libraries**: Fonts and external libraries are not bundled; you must upload necessary files to the workspace first.
-- **Format Support**: Build-specific limits may affect exports (e.g., `3mf` is currently unsupported).
+- **Visuals**: Screenshots are shaded mesh previews. They do not preserve OpenSCAD colors, GUI helpers, or 2D camera perspectives. Meshes above 500,000 triangles are rejected.
+- **Assets and libraries**: Fonts and external libraries are not bundled for the MCP engine. Put required files in the workspace beside the source.
+- **Format support**: `3mf` is advertised by OpenSCAD but fails in the pinned server-side WASM build. The tool returns a clear error.
 
-## License
+## Licensing
 
-MIT License. See [LICENSE](LICENSE) for details. Dependencies (`openscad-wasm`, `sharp`) carry their own respective licenses.
+The MCP server is MIT licensed. The browser UI is derived from OpenSCAD Playground and is distributed under GPLv2 or later; its dependencies and attribution are documented in [web/LICENSE.md](web/LICENSE.md). Runtime dependencies carry their own licenses.

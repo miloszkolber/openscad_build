@@ -1,10 +1,12 @@
 import sharp from 'sharp';
-import { formatPreviewCamera } from '../openscad/args.js';
+import { formatCamera } from './camera.js';
 
 const DEFAULT_WIDTH = 512;
 const DEFAULT_HEIGHT = 512;
-const MAX_PREVIEW_TRIANGLES = 50000;
+const MAX_IMAGE_TRIANGLES = 500_000;
 const SVG_PADDING = 0.86;
+
+export type ImageFormat = 'png' | 'webp';
 
 type Vec3 = [number, number, number];
 type Vec2 = [number, number];
@@ -28,47 +30,53 @@ interface ProjectedTriangle {
   color: string;
 }
 
-export interface StlPreviewOptions {
+export interface StlImageOptions {
   width?: number;
   height?: number;
   camera?: string;
   viewAll?: boolean;
   autoCenter?: boolean;
   projection?: 'orthogonal' | 'perspective';
+  format?: ImageFormat;
 }
 
-export async function renderStlPreviewToWebp(
+export async function renderStlImage(
   stl: Buffer,
-  options: StlPreviewOptions
-): Promise<Buffer> {
+  options: StlImageOptions
+): Promise<{ data: Buffer; format: ImageFormat; width: number; height: number }> {
   const width = options.width ?? DEFAULT_WIDTH;
   const height = options.height ?? DEFAULT_HEIGHT;
+  const format = options.format ?? 'png';
   const triangles = parseStlTriangles(stl);
 
-  if (triangles.length > MAX_PREVIEW_TRIANGLES) {
+  if (triangles.length > MAX_IMAGE_TRIANGLES) {
     throw new Error(
-      `Preview STL has ${triangles.length} triangles, above the ${MAX_PREVIEW_TRIANGLES} triangle limit.`
+      `Image STL has ${triangles.length} triangles, above the ${MAX_IMAGE_TRIANGLES} triangle limit.`
     );
   }
 
-  const svg = renderStlPreviewSvg(triangles, {
+  const svg = renderStlImageSvg(triangles, {
     ...options,
     width,
     height
   });
 
-  return sharp(Buffer.from(svg), { limitInputPixels: width * height })
-    .webp({ quality: 86, effort: 4 })
-    .toBuffer();
+  const image = sharp(Buffer.from(svg), { limitInputPixels: width * height });
+  const data =
+    format === 'webp'
+      ? await image.webp({ quality: 86, effort: 4 }).toBuffer()
+      : await image.png({ compressionLevel: 9 }).toBuffer();
+
+  return { data, format, width, height };
 }
 
 export function parseStlTriangles(data: Buffer): Triangle[] {
   return parseBinaryStl(data) ?? parseAsciiStl(data.toString('utf8'));
 }
 
-function renderStlPreviewSvg(
+function renderStlImageSvg(
   triangles: Triangle[],
-  options: Required<Pick<StlPreviewOptions, 'width' | 'height'>> & StlPreviewOptions
+  options: Required<Pick<StlImageOptions, 'width' | 'height'>> & StlImageOptions
 ): string {
   const bounds = boundsForTriangles(triangles);
   if (!bounds) {
@@ -96,6 +104,10 @@ function renderStlPreviewSvg(
     );
   const center: Vec2 = [(view.min[0] + view.max[0]) / 2, (view.min[1] + view.max[1]) / 2];
 
+  const outline =
+    triangles.length <= 2000
+      ? 'stroke="#344054" stroke-opacity="0.28" stroke-width="0.75"'
+      : 'stroke-width="0.6"';
   const polygons = projected
     .sort((left, right) => right.depth - left.depth)
     .map((triangle) => {
@@ -106,7 +118,10 @@ function renderStlPreviewSvg(
         ])
         .map(([x, y]) => `${formatSvgNumber(x)},${formatSvgNumber(y)}`)
         .join(' ');
-      return `<polygon points="${points}" fill="${triangle.color}" stroke="#344054" stroke-opacity="0.28" stroke-width="0.75"/>`;
+      const stroke = outline.startsWith('stroke-width')
+        ? `stroke="${triangle.color}" ${outline}`
+        : outline;
+      return `<polygon points="${points}" fill="${triangle.color}" ${stroke}/>`;
     })
     .join('');
 
@@ -164,7 +179,7 @@ function readVec3(data: Buffer, offset: number): Vec3 {
   return [data.readFloatLE(offset), data.readFloatLE(offset + 4), data.readFloatLE(offset + 8)];
 }
 
-function createCamera(bounds: { min: Vec3; max: Vec3 }, options: StlPreviewOptions): Camera {
+function createCamera(bounds: { min: Vec3; max: Vec3 }, options: StlImageOptions): Camera {
   const center = midpoint(bounds.min, bounds.max);
   const diagonal = Math.max(length(sub(bounds.max, bounds.min)), 1);
 
@@ -172,7 +187,7 @@ function createCamera(bounds: { min: Vec3; max: Vec3 }, options: StlPreviewOptio
   let target: Vec3;
 
   if (options.camera) {
-    const cameraValues = formatPreviewCamera(options.camera)
+    const cameraValues = formatCamera(options.camera)
       .split(',')
       .map((value) => Number(value));
     if (cameraValues.length === 6) {

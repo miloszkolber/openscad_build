@@ -2,14 +2,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppConfig } from '../config.js';
 import type { OpenScadRunner } from '../openscad/OpenScadRunner.js';
 import type { Semaphore } from '../security/limits.js';
-import type { ArtifactStore } from '../workspace/artifactStore.js';
 import type { WorkspaceManager } from '../workspace/WorkspaceManager.js';
-import type { PreviewTokenStore } from '../preview/PreviewTokenStore.js';
 import { handleAnalyzeModel, analyzeModelInputSchema } from './analyzeModel.js';
-import { handleCreatePreviewLink, createPreviewLinkInputSchema } from './createPreviewLink.js';
 import { handleExportModel, exportModelInputSchema } from './exportModel.js';
-import { handleRenderPreview, renderPreviewInputSchema } from './renderPreview.js';
-import { asMcpToolResult } from './toolResponse.js';
+import { handleScreenshot, screenshotInputSchema } from './screenshot.js';
+import { asMcpImageResult, asMcpToolResult } from './toolResponse.js';
 import { handleValidate, validateInputSchema } from './validate.js';
 import {
   handleWorkspaceDeleteFile,
@@ -27,8 +24,6 @@ export interface ToolDependencies {
   config: AppConfig;
   runner: OpenScadRunner;
   workspace: WorkspaceManager;
-  artifacts: ArtifactStore;
-  previewTokens: PreviewTokenStore;
   semaphore: Semaphore;
 }
 
@@ -41,7 +36,7 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
     'openscad_validate',
     {
       title: 'Validate OpenSCAD',
-      description: 'Validate OpenSCAD source with openscad-wasm and return diagnostics.',
+      description: 'Validate a workspace SCAD file or inline source and return diagnostics.',
       inputSchema: validateInputSchema.shape
     },
     async (input, extra) =>
@@ -52,7 +47,8 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
     'openscad_export_model',
     {
       title: 'Export OpenSCAD Model',
-      description: 'Export OpenSCAD source to an allowed model/vector format.',
+      description:
+        'Export a workspace SCAD file or inline source to an allowed model/vector format and write it to the workspace.',
       inputSchema: exportModelInputSchema.shape
     },
     async (input, extra) =>
@@ -60,22 +56,23 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
   );
 
   server.registerTool(
-    'openscad_render_preview',
+    'openscad_screenshot',
     {
-      title: 'Render OpenSCAD Preview',
+      title: 'Screenshot OpenSCAD Model',
       description:
-        'Export STL and return an interactive 3D preview link when PREVIEW_ENABLED=true, otherwise render a server-side WebP mesh preview.',
-      inputSchema: renderPreviewInputSchema.shape
+        'Render a shaded PNG or WebP image of a workspace SCAD file or inline source and return it inline.',
+      inputSchema: screenshotInputSchema.shape
     },
     async (input, extra) =>
-      asMcpToolResult(await handleRenderPreview(input, requestDependencies(extra.signal)))
+      asMcpImageResult(await handleScreenshot(input, requestDependencies(extra.signal)))
   );
 
   server.registerTool(
     'openscad_analyze_model',
     {
       title: 'Analyze OpenSCAD Model',
-      description: 'Export STL and compute a minimal bounding box and triangle count summary.',
+      description:
+        'Compute a bounding box and triangle count for a workspace SCAD file or inline source.',
       inputSchema: analyzeModelInputSchema.shape
     },
     async (input, extra) =>
@@ -83,22 +80,10 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
   );
 
   server.registerTool(
-    'openscad_create_preview_link',
-    {
-      title: 'Create 3D Preview Link',
-      description:
-        'Create a browser-viewable interactive STL preview link from SCAD, a workspace STL path, or an artifact path.',
-      inputSchema: createPreviewLinkInputSchema.shape
-    },
-    async (input, extra) =>
-      asMcpToolResult(await handleCreatePreviewLink(input, requestDependencies(extra.signal)))
-  );
-
-  server.registerTool(
     'workspace_list_files',
     {
       title: 'List Workspace Files',
-      description: 'List files inside the configured workspace root.',
+      description: 'List files inside the configured model workspace.',
       inputSchema: workspaceListFilesInputSchema.shape
     },
     async (input) => asMcpToolResult(await handleWorkspaceListFiles(input, deps))
@@ -108,7 +93,7 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
     'workspace_read_file',
     {
       title: 'Read Workspace File',
-      description: 'Read an allowed file from the workspace root.',
+      description: 'Read an allowed file from the model workspace.',
       inputSchema: workspaceReadFileInputSchema.shape
     },
     async (input) => asMcpToolResult(await handleWorkspaceReadFile(input, deps))
@@ -118,7 +103,7 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
     'workspace_write_file',
     {
       title: 'Write Workspace File',
-      description: 'Write an allowed file under the workspace root.',
+      description: 'Write an allowed text file under the model workspace.',
       inputSchema: workspaceWriteFileInputSchema.shape
     },
     async (input) => asMcpToolResult(await handleWorkspaceWriteFile(input, deps))
@@ -128,7 +113,7 @@ export function registerTools(server: McpServer, deps: ToolDependencies): void {
     'workspace_delete_file',
     {
       title: 'Delete Workspace File',
-      description: 'Delete an allowed file under the workspace root.',
+      description: 'Delete an allowed file under the model workspace.',
       inputSchema: workspaceDeleteFileInputSchema.shape
     },
     async (input) => asMcpToolResult(await handleWorkspaceDeleteFile(input, deps))

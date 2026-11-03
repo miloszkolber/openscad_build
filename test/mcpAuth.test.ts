@@ -10,22 +10,15 @@ function baseConfig(mcpAuthToken?: string): AppConfig {
     backend: 'mock',
     mcpAuthToken,
     paths: {
-      workspaceDir: '/workspace',
-      artifactDir: '/workspace/artifacts',
-      jobTmpDir: '/tmp/openscad-jobs'
+      workspaceDir: '/workspace'
     },
     limits: {
       maxRenderMs: 1000,
       maxOutputBytes: 1024,
       maxInputBytes: 1024,
-      maxParallelJobs: 1,
-      cleanupJobs: true
+      maxParallelJobs: 1
     },
-    preview: {
-      enabled: true,
-      publicBaseUrl: 'http://127.0.0.1:3333',
-      ttlSeconds: 3600
-    }
+    webDir: '/app/dist/web'
   };
 }
 

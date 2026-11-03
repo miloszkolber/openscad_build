@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildOpenScadArgs, formatDefineValue, formatPreviewCamera } from '../src/openscad/args.js';
+import { buildOpenScadArgs, formatDefineValue } from '../src/openscad/args.js';
 import { extensionForFormat, isExportFormat, mimeTypeForFormat } from '../src/openscad/formats.js';
+import { formatCamera } from '../src/render/camera.js';
 
 describe('formats', () => {
   it('allows only configured export formats', () => {
@@ -14,8 +15,7 @@ describe('formats', () => {
   it('maps extensions and mime types', () => {
     expect(extensionForFormat('stl')).toBe('.stl');
     expect(extensionForFormat('svg')).toBe('.svg');
-    expect(extensionForFormat('webp')).toBe('.webp');
-    expect(mimeTypeForFormat('webp')).toBe('image/webp');
+    expect(mimeTypeForFormat('stl')).toBe('model/stl');
   });
 });
 
@@ -79,8 +79,8 @@ describe('OpenSCAD args builder', () => {
     expect(() => formatDefineValue(Number.NaN)).toThrow(/finite/);
   });
 
-  it('rejects unsafe preview camera values', () => {
-    expect(() => formatPreviewCamera('1,2,3')).toThrow(/6 or 7/);
-    expect(() => formatPreviewCamera('1,2,3,4,5,--viewall')).toThrow(/finite numbers/);
+  it('rejects unsafe camera values', () => {
+    expect(() => formatCamera('1,2,3')).toThrow(/6 or 7/);
+    expect(() => formatCamera('1,2,3,4,5,--viewall')).toThrow(/finite numbers/);
   });
 });

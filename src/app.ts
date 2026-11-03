@@ -4,8 +4,6 @@ import { OpenScadWasmRunner } from './openscad/OpenScadWasmRunner.js';
 import type { OpenScadRunner } from './openscad/OpenScadRunner.js';
 import { Semaphore } from './security/limits.js';
 import type { ToolDependencies } from './tools/index.js';
-import { PreviewTokenStore } from './preview/PreviewTokenStore.js';
-import { ArtifactStore } from './workspace/artifactStore.js';
 import { WorkspaceManager } from './workspace/WorkspaceManager.js';
 
 export async function createToolDependencies(
@@ -23,8 +21,6 @@ export async function createToolDependencies(
     config,
     runner,
     workspace,
-    artifacts: new ArtifactStore(config.paths.artifactDir, config.limits.maxOutputBytes),
-    previewTokens: new PreviewTokenStore(config.preview.ttlSeconds),
     semaphore: new Semaphore(config.limits.maxParallelJobs)
   };
 }

@@ -1,17 +1,12 @@
 import * as z from 'zod/v4';
-import { attachStlPreviewLink } from '../preview/attachPreviewLink.js';
 import type { AnalyzeToolResult } from '../types/toolResults.js';
 import type { ToolDependencies } from './index.js';
-import { definesSchema, filesSchema } from './validate.js';
+import { refineSingleSource, sourceFields } from './modelInput.js';
 import { errorRunResult } from './toolResponse.js';
 
-export const analyzeModelInputSchema = z.object({
-  scad: z.string().min(1),
-  files: filesSchema.optional(),
-  defines: definesSchema.optional(),
-  enableManifold: z.boolean().optional(),
-  timeoutMs: z.number().int().positive().optional()
-});
+export const analyzeModelInputSchema = z
+  .object(sourceFields)
+  .superRefine(refineSingleSource);
 
 export type AnalyzeModelInput = z.infer<typeof analyzeModelInputSchema>;
 
@@ -22,72 +17,55 @@ export async function handleAnalyzeModel(
   const started = performance.now();
   try {
     const input = analyzeModelInputSchema.parse(rawInput);
-    const job = await deps.workspace.createJob();
-    try {
-      await deps.workspace.writeJobInputs({
-        job,
-        scad: input.scad,
-        files: input.files,
-        maxInputBytes: deps.config.limits.maxInputBytes
-      });
+    const source = await deps.workspace.resolveModelInput({
+      path: input.path,
+      scad: input.scad,
+      files: input.files,
+      maxInputBytes: deps.config.limits.maxInputBytes
+    });
 
-      const result = await deps.semaphore.run(
-        () =>
-          deps.runner.export(
-            {
-              ...input,
-              format: 'stl',
-              summaryFile: true,
-              jobId: job.id,
-              jobDir: job.dir,
-              timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
-            },
-            deps.signal
-          ),
-        deps.signal
-      );
+    const result = await deps.semaphore.run(
+      () =>
+        deps.runner.export(
+          {
+            sourcePath: source.sourcePath,
+            scad: source.scad,
+            files: source.files,
+            format: 'stl',
+            summaryFile: true,
+            defines: input.defines,
+            enableManifold: input.enableManifold,
+            timeoutMs: input.timeoutMs ?? deps.config.limits.maxRenderMs
+          },
+          deps.signal
+        ),
+      deps.signal
+    );
 
-      if (!result.ok) {
-        return {
-          ok: false,
-          summary: {},
-          diagnostics: result.diagnostics,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          elapsedMs: result.elapsedMs
-        };
-      }
-
-      const artifact = await deps.artifacts.saveArtifact({
-        jobId: job.id,
-        suffix: result.filename,
-        format: result.format,
-        data: result.data
-      });
-      const geometry = mergeGeometry(
-        parseStlGeometry(result.data),
-        geometryFromOpenScadSummary(result.summary)
-      );
-      const preview = await attachStlPreviewLink(deps, artifact, {
-        scad: input.scad,
-        jobId: job.id
-      });
-
+    if (!result.ok) {
       return {
-        ok: true,
-        summary: {
-          ...geometry,
-          artifact
-        },
-        ...preview,
+        ok: false,
+        summary: {},
         diagnostics: result.diagnostics,
         stdout: result.stdout,
         stderr: result.stderr,
         elapsedMs: result.elapsedMs
       };
-    } finally {
-      await deps.workspace.cleanupJob(job, deps.config.limits.cleanupJobs);
     }
+
+    const geometry = mergeGeometry(
+      parseStlGeometry(result.data),
+      geometryFromOpenScadSummary(result.summary)
+    );
+
+    return {
+      ok: true,
+      summary: geometry,
+      diagnostics: result.diagnostics,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      elapsedMs: result.elapsedMs
+    };
   } catch (error) {
     return {
       ...errorRunResult(error, Math.round(performance.now() - started)),

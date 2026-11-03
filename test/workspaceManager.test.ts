@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -10,9 +10,7 @@ let manager: WorkspaceManager;
 beforeEach(async () => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), 'openscad-workspace-'));
   manager = new WorkspaceManager({
-    workspaceDir: path.join(tempDir, 'workspace'),
-    artifactDir: path.join(tempDir, 'workspace', 'artifacts'),
-    jobTmpDir: path.join(tempDir, 'jobs')
+    workspaceDir: path.join(tempDir, 'workspace')
   });
   await manager.init();
 });
@@ -52,14 +50,70 @@ describe('WorkspaceManager', () => {
     ).rejects.toThrow(/traversal/i);
   });
 
-  it('creates and cleans job workspaces', async () => {
-    const job = await manager.createJob();
-    await manager.writeJobInputs({
-      job,
-      scad: 'include <lib.scad>\ncube(size);',
-      files: { 'lib.scad': 'size = 2;' },
+  it('resolves a workspace source and stages its sibling files', async () => {
+    const workspace = manager['paths'].workspaceDir;
+    await manager.writeWorkspaceFile({
+      path: 'model/main.scad',
+      content: 'include "lib/shape.scad"\nshape(2);',
       maxInputBytes: 1024
     });
-    await expect(manager.cleanupJob(job, true)).resolves.toBeUndefined();
+    await manager.writeWorkspaceFile({
+      path: 'model/lib/shape.scad',
+      content: 'module shape(size) cube(size);',
+      maxInputBytes: 1024
+    });
+    await manager.writeWorkspaceBinary({
+      path: 'model/lib/part.stl',
+      data: Buffer.from('solid part\nendsolid part\n'),
+      maxBytes: 1024
+    });
+
+    const resolved = await manager.resolveModelInput({
+      path: 'model/main.scad',
+      maxInputBytes: 1024
+    });
+
+    expect(resolved.sourcePath).toBe('model/main.scad');
+    expect(resolved.scad).toContain('include "lib/shape.scad"');
+    expect(resolved.files['model/lib/shape.scad']).toBe('module shape(size) cube(size);');
+    expect(resolved.files['model/lib/part.stl']).toEqual({
+      contentBase64: Buffer.from('solid part\nendsolid part\n').toString('base64')
+    });
+    expect(workspace).toBeTruthy();
+  });
+
+  it('writes explicit binary outputs', async () => {
+    const output = await manager.writeWorkspaceBinary({
+      path: 'model/out.stl',
+      data: Buffer.from('solid out\nendsolid out\n'),
+      maxBytes: 1024
+    });
+    expect(output.path).toBe('model/out.stl');
+    expect(await readFile(path.join(manager['paths'].workspaceDir, 'model/out.stl'))).toEqual(
+      Buffer.from('solid out\nendsolid out\n')
+    );
+  });
+
+  it('rejects inline and path sources together', async () => {
+    await expect(
+      manager.resolveModelInput({
+        path: 'model/main.scad',
+        scad: 'cube(1);',
+        maxInputBytes: 1024
+      })
+    ).rejects.toThrow(/either path or scad/i);
+  });
+
+  it('ignores excluded directories in listings', async () => {
+    const workspace = manager['paths'].workspaceDir;
+    await writeFile(path.join(workspace, 'visible.scad'), 'cube(1);');
+    await manager.writeWorkspaceFile({
+      path: '.tmp/ignored.scad',
+      content: 'cube(2);',
+      maxInputBytes: 1024
+    });
+
+    const files = await manager.listFiles('.');
+    expect(files.map((file) => file.path)).toEqual(['visible.scad']);
   });
 });

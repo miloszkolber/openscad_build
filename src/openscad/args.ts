@@ -45,27 +45,3 @@ export function formatDefineValue(value: DefineValue): string {
 
   return JSON.stringify(value);
 }
-
-export function formatPreviewCamera(value: string): string {
-  const parts = value.split(',').map((part) => part.trim());
-  if (parts.length !== 6 && parts.length !== 7) {
-    throw new Error('OpenSCAD preview camera must contain 6 or 7 comma-separated finite numbers.');
-  }
-
-  return parts
-    .map((part) => {
-      if (!isCliNumber(part)) {
-        throw new Error('OpenSCAD preview camera must contain only finite numbers.');
-      }
-      const parsed = Number(part);
-      if (!Number.isFinite(parsed)) {
-        throw new Error('OpenSCAD preview camera must contain only finite numbers.');
-      }
-      return String(parsed);
-    })
-    .join(',');
-}
-
-function isCliNumber(value: string): boolean {
-  return /^[-+]?(?:(?:\d+\.?\d*)|(?:\.\d+))(?:[eE][-+]?\d+)?$/.test(value);
-}

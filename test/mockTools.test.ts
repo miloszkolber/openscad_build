@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AppConfig } from '../src/config.js';
 import { MockOpenScadRunner } from '../src/openscad/MockOpenScadRunner.js';
+import type { OpenScadRunner } from '../src/openscad/OpenScadRunner.js';
 import { Semaphore } from '../src/security/limits.js';
 import {
   geometryFromOpenScadSummary,
@@ -12,11 +13,9 @@ import {
   parseStlGeometry
 } from '../src/tools/analyzeModel.js';
 import { handleExportModel } from '../src/tools/exportModel.js';
-import { handleRenderPreview } from '../src/tools/renderPreview.js';
+import { handleScreenshot } from '../src/tools/screenshot.js';
 import { handleValidate } from '../src/tools/validate.js';
 import type { ToolDependencies } from '../src/tools/index.js';
-import { ArtifactStore } from '../src/workspace/artifactStore.js';
-import { PreviewTokenStore } from '../src/preview/PreviewTokenStore.js';
 import { WorkspaceManager } from '../src/workspace/WorkspaceManager.js';
 
 let tempDir: string;
@@ -29,22 +28,15 @@ beforeEach(async () => {
     host: '127.0.0.1',
     backend: 'mock',
     paths: {
-      workspaceDir: path.join(tempDir, 'workspace'),
-      artifactDir: path.join(tempDir, 'workspace', 'artifacts'),
-      jobTmpDir: path.join(tempDir, 'jobs')
+      workspaceDir: path.join(tempDir, 'workspace')
     },
     limits: {
       maxRenderMs: 1000,
       maxOutputBytes: 1024 * 1024,
       maxInputBytes: 1024 * 1024,
-      maxParallelJobs: 2,
-      cleanupJobs: true
+      maxParallelJobs: 2
     },
-    preview: {
-      enabled: true,
-      publicBaseUrl: 'http://127.0.0.1:3333',
-      ttlSeconds: 3600
-    }
+    webDir: path.join(tempDir, 'web')
   };
   const workspace = new WorkspaceManager(config.paths);
   await workspace.init();
@@ -52,8 +44,6 @@ beforeEach(async () => {
     config,
     runner: new MockOpenScadRunner(),
     workspace,
-    artifacts: new ArtifactStore(config.paths.artifactDir, config.limits.maxOutputBytes),
-    previewTokens: new PreviewTokenStore(config.preview.ttlSeconds),
     semaphore: new Semaphore(config.limits.maxParallelJobs)
   };
 });
@@ -69,50 +59,105 @@ describe('mock tool handlers', () => {
     expect(result.stderr).toBe('');
   });
 
-  it('exports artifacts with metadata', async () => {
+  it('exports inline SCAD to an explicit workspace path', async () => {
+    const result = await handleExportModel(
+      { scad: 'cube(1);', format: 'stl', outputPath: 'models/cube.stl' },
+      deps
+    );
+    expect(result.ok).toBe(true);
+    expect(result.output).toMatchObject({
+      path: 'models/cube.stl',
+      format: 'stl',
+      mimeType: 'model/stl'
+    });
+    expect(result.output?.sha256).toHaveLength(64);
+    const data = await readFile(path.join(deps.config.paths.workspaceDir, 'models/cube.stl'));
+    expect(data.toString('utf8')).toContain('solid mock');
+  });
+
+  it('defaults the output path beside a workspace source', async () => {
+    await deps.workspace.writeWorkspaceFile({
+      path: 'models/part.scad',
+      content: 'cube(2);',
+      maxInputBytes: 1024
+    });
+
+    const result = await handleExportModel({ path: 'models/part.scad', format: 'off' }, deps);
+    expect(result.ok).toBe(true);
+    expect(result.output?.path).toBe('models/part.off');
+  });
+
+  it('requires an output path for inline SCAD exports', async () => {
     const result = await handleExportModel({ scad: 'cube(1);', format: 'stl' }, deps);
-    expect(result.ok).toBe(true);
-    expect(result.artifact?.format).toBe('stl');
-    expect(result.artifact?.sha256).toHaveLength(64);
-    expect(result.previewUrl).toMatch(/\/viewer\/[0-9a-f-]{36}$/);
-    expect(result.modelUrl).toMatch(/\/preview\/[0-9a-f-]{36}\/model\.stl$/);
-    expect(result.scadUrl).toMatch(/\/preview\/[0-9a-f-]{36}\/model\.scad$/);
-    expect(result.expiresAt).toBeTruthy();
+    expect(result.ok).toBe(false);
+    expect(result.stderr).toContain('outputPath is required');
   });
 
-  it('does not attach preview links for non-STL exports', async () => {
-    const result = await handleExportModel({ scad: 'cube(1);', format: 'off' }, deps);
+  it('passes workspace sources and staged files to the runner', async () => {
+    await deps.workspace.writeWorkspaceFile({
+      path: 'models/main.scad',
+      content: 'include "lib.scad"\ncube(size);',
+      maxInputBytes: 1024
+    });
+    await deps.workspace.writeWorkspaceFile({
+      path: 'models/lib.scad',
+      content: 'size = 3;',
+      maxInputBytes: 1024
+    });
+
+    let seen: { sourcePath?: string; files?: Record<string, unknown> } = {};
+    const mock = new MockOpenScadRunner();
+    deps.runner = {
+      validate: (input) => mock.validate(input),
+      export: async (input) => {
+        seen = { sourcePath: input.sourcePath, files: input.files };
+        return mock.export(input);
+      }
+    } satisfies OpenScadRunner;
+
+    const result = await handleExportModel({ path: 'models/main.scad', format: 'stl' }, deps);
     expect(result.ok).toBe(true);
-    expect(result.previewUrl).toBeUndefined();
+    expect(seen.sourcePath).toBe('models/main.scad');
+    expect(seen.files).toMatchObject({ 'models/lib.scad': 'size = 3;' });
   });
 
-  it('returns an interactive 3D preview link when preview is enabled', async () => {
-    const result = await handleRenderPreview({ scad: 'cube(1);', width: 320, height: 240 }, deps);
+  it('renders an inline PNG screenshot', async () => {
+    const result = await handleScreenshot(
+      { scad: 'cube(1);', width: 320, height: 240 },
+      deps
+    );
     expect(result.ok).toBe(true);
-    expect(result.artifact?.format).toBe('stl');
-    expect(result.artifact?.mimeType).toBe('model/stl');
-    expect(result.previewUrl).toMatch(/\/viewer\//);
-    expect(result.modelUrl).toMatch(/\/preview\/[0-9a-f-]{36}\/model\.stl$/);
-    expect(result.scadUrl).toMatch(/\/preview\/[0-9a-f-]{36}\/model\.scad$/);
-    expect(result.expiresAt).toBeTruthy();
-  });
-
-  it('renders a WebP preview when interactive preview is disabled', async () => {
-    deps.config.preview.enabled = false;
-    const result = await handleRenderPreview({ scad: 'cube(1);', width: 320, height: 240 }, deps);
-    expect(result.ok).toBe(true);
-    expect(result.artifact?.format).toBe('webp');
-    expect(result.artifact?.mimeType).toBe('image/webp');
-    expect(result.artifact?.filename).toMatch(/output\.webp$/);
-    expect(result.previewUrl).toBeUndefined();
-
-    const artifactPath = path.join(deps.config.paths.workspaceDir, result.artifact?.path ?? '');
-    const artifact = await readFile(artifactPath);
-    expect(artifact.subarray(0, 4).toString('ascii')).toBe('RIFF');
-    expect(artifact.subarray(8, 12).toString('ascii')).toBe('WEBP');
-
-    const stats = await sharp(artifact).stats();
+    expect(result.image).toMatchObject({
+      format: 'png',
+      width: 320,
+      height: 240,
+      mimeType: 'image/png'
+    });
+    expect(result.imageData?.subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    );
+    const stats = await sharp(result.imageData).stats();
     expect(stats.channels.some((channel) => channel.stdev > 0)).toBe(true);
+  });
+
+  it('writes a WebP screenshot when requested', async () => {
+    const result = await handleScreenshot(
+      {
+        scad: 'cube(1);',
+        format: 'webp',
+        width: 320,
+        height: 240,
+        outputPath: 'models/preview.webp'
+      },
+      deps
+    );
+    expect(result.ok).toBe(true);
+    expect(result.output?.path).toBe('models/preview.webp');
+    expect(result.image?.mimeType).toBe('image/webp');
+
+    const data = await readFile(path.join(deps.config.paths.workspaceDir, 'models/preview.webp'));
+    expect(data.subarray(0, 4).toString('ascii')).toBe('RIFF');
+    expect(data.subarray(8, 12).toString('ascii')).toBe('WEBP');
   });
 
   it('analyzes STL triangle count and bounding box through mock export', async () => {
@@ -120,8 +165,6 @@ describe('mock tool handlers', () => {
     expect(result.ok).toBe(true);
     expect(result.summary.triangleCount).toBe(2);
     expect(result.summary.boundingBox).toEqual({ min: [0, 0, 0], max: [1, 1, 0] });
-    expect(result.summary.artifact?.format).toBe('stl');
-    expect(result.previewUrl).toMatch(/\/viewer\//);
   });
 });
 

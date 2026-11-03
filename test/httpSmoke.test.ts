@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import type { Server } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,38 +8,33 @@ import { MockOpenScadRunner } from '../src/openscad/MockOpenScadRunner.js';
 import { Semaphore } from '../src/security/limits.js';
 import { startStreamableHttpServer } from '../src/server/transport.js';
 import type { ToolDependencies } from '../src/tools/index.js';
-import { ArtifactStore } from '../src/workspace/artifactStore.js';
-import { PreviewTokenStore } from '../src/preview/PreviewTokenStore.js';
 import { WorkspaceManager } from '../src/workspace/WorkspaceManager.js';
 
 let tempDir: string;
 let server: Server;
+let baseUrl: string;
 let url: string;
 let dependencies: ToolDependencies;
 
 beforeEach(async () => {
   tempDir = await mkdtemp(path.join(os.tmpdir(), 'openscad-http-smoke-'));
+  const webDir = path.join(tempDir, 'web');
+  await mkdir(webDir, { recursive: true });
+  await writeFile(path.join(webDir, 'index.html'), '<title>Test OpenSCAD browser</title>');
   const config: AppConfig = {
     port: 0,
     host: '127.0.0.1',
     backend: 'mock',
     paths: {
-      workspaceDir: path.join(tempDir, 'workspace'),
-      artifactDir: path.join(tempDir, 'workspace', 'artifacts'),
-      jobTmpDir: path.join(tempDir, 'jobs')
+      workspaceDir: path.join(tempDir, 'workspace')
     },
     limits: {
       maxRenderMs: 1000,
       maxOutputBytes: 1024 * 1024,
       maxInputBytes: 1024 * 1024,
-      maxParallelJobs: 2,
-      cleanupJobs: true
+      maxParallelJobs: 2
     },
-    preview: {
-      enabled: true,
-      publicBaseUrl: 'http://127.0.0.1:3333',
-      ttlSeconds: 3600
-    }
+    webDir
   };
   const workspace = new WorkspaceManager(config.paths);
   await workspace.init();
@@ -47,8 +42,6 @@ beforeEach(async () => {
     config,
     runner: new MockOpenScadRunner(),
     workspace,
-    artifacts: new ArtifactStore(config.paths.artifactDir, config.limits.maxOutputBytes),
-    previewTokens: new PreviewTokenStore(config.preview.ttlSeconds),
     semaphore: new Semaphore(config.limits.maxParallelJobs)
   };
   dependencies = deps;
@@ -58,7 +51,8 @@ beforeEach(async () => {
   if (!address || typeof address === 'string') {
     throw new Error('Expected test HTTP server to listen on a TCP port.');
   }
-  url = `http://127.0.0.1:${address.port}/mcp`;
+  baseUrl = `http://127.0.0.1:${address.port}`;
+  url = `${baseUrl}/mcp`;
 });
 
 afterEach(async () => {
@@ -69,7 +63,7 @@ afterEach(async () => {
 });
 
 describe('Streamable HTTP MCP smoke', () => {
-  it('forwards HTTP disconnects to running work and cleans the job', async () => {
+  it('forwards HTTP disconnects to running work', async () => {
     let runningSignal: AbortSignal | undefined;
     dependencies.runner.export = async (_input, signal) => {
       runningSignal = signal;
@@ -84,9 +78,6 @@ describe('Streamable HTTP MCP smoke', () => {
     controller.abort();
     await rejection;
     await vi.waitFor(() => expect(runningSignal?.aborted).toBe(true));
-    await vi.waitFor(async () =>
-      expect(await readdir(dependencies.config.paths.jobTmpDir)).toEqual([])
-    );
   });
 
   it('removes disconnected queued work and allows a later request to finish', async () => {
@@ -94,36 +85,30 @@ describe('Streamable HTTP MCP smoke', () => {
     let release!: () => void;
     const mock = new MockOpenScadRunner();
     dependencies.semaphore = new Semaphore(1);
-    dependencies.runner.export = async (input) => {
-      seen.push(input.scad);
-      if (input.scad === 'slow') {
-        await new Promise<void>((resolve) => {
-          release = resolve;
-        });
+    dependencies.runner = {
+      validate: (input) => mock.validate(input),
+      export: async (input) => {
+        seen.push(input.scad);
+        if (input.scad === 'slow') {
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+        return mock.export(input);
       }
-      return mock.export(input);
     };
-    const first = exportRequest('slow');
+    const first = exportRequest('slow', undefined, 'slow.stl');
     await vi.waitFor(() => expect(seen).toEqual(['slow']));
     const controller = new AbortController();
-    const second = exportRequest('cancelled', controller.signal);
+    const second = exportRequest('cancelled', controller.signal, 'cancelled.stl');
     const rejection = expect(second).rejects.toThrow();
-    await vi.waitFor(async () =>
-      expect(await readdir(dependencies.config.paths.jobTmpDir)).toHaveLength(2)
-    );
     controller.abort();
     await rejection;
-    await vi.waitFor(async () =>
-      expect(await readdir(dependencies.config.paths.jobTmpDir)).toHaveLength(1)
-    );
-    const third = exportRequest('later');
+    const third = exportRequest('later', undefined, 'later.stl');
     release();
     expect((await first).status).toBe(200);
     expect((await third).status).toBe(200);
     expect(seen).toEqual(['slow', 'later']);
-    await vi.waitFor(async () =>
-      expect(await readdir(dependencies.config.paths.jobTmpDir)).toEqual([])
-    );
   });
 
   it('lists tools and calls validate through /mcp', async () => {
@@ -133,13 +118,13 @@ describe('Streamable HTTP MCP smoke', () => {
       method: 'tools/list',
       params: {}
     });
-
-    expect(tools.result.tools.map((tool: { name: string }) => tool.name)).toContain(
-      'openscad_validate'
-    );
-    expect(tools.result.tools.map((tool: { name: string }) => tool.name)).toContain(
-      'openscad_create_preview_link'
-    );
+    const names = tools.result.tools.map((tool: { name: string }) => tool.name);
+    expect(names).toContain('openscad_validate');
+    expect(names).toContain('openscad_export_model');
+    expect(names).toContain('openscad_screenshot');
+    expect(names).toContain('openscad_analyze_model');
+    expect(names).not.toContain('openscad_create_preview_link');
+    expect(names).not.toContain('openscad_render_preview');
 
     const validate = await postJsonRpc({
       jsonrpc: '2.0',
@@ -159,33 +144,74 @@ describe('Streamable HTTP MCP smoke', () => {
     });
   });
 
+  it('returns an inline image from openscad_screenshot', async () => {
+    const screenshot = await postJsonRpc({
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: {
+        name: 'openscad_screenshot',
+        arguments: { scad: 'cube(1);', width: 64, height: 64 }
+      }
+    });
+
+    expect(screenshot.result.structuredContent).toMatchObject({
+      ok: true,
+      image: { format: 'png', width: 64, height: 64 }
+    });
+    const image = screenshot.result.content.find((item: { type: string }) => item.type === 'image');
+    expect(image).toMatchObject({ type: 'image', mimeType: 'image/png' });
+    expect(image.data.length).toBeGreaterThan(0);
+  });
+
+  it('serves the browser UI, file index, and read-only model files', async () => {
+    await dependencies.workspace.writeWorkspaceFile({
+      path: 'models/cube.scad',
+      content: 'cube(1);',
+      maxInputBytes: 1024
+    });
+
+    const home = await fetch(`${baseUrl}/`);
+    expect(home.status).toBe(200);
+    expect(await home.text()).toContain('Test OpenSCAD browser');
+
+    const index = await fetch(`${baseUrl}/api/files`);
+    expect(index.status).toBe(200);
+    expect(index.headers.get('cache-control')).toBe('no-store');
+    expect(await index.json()).toEqual({ models: { 'cube.scad': null } });
+
+    const model = await fetch(`${baseUrl}/models/models/cube.scad`);
+    expect(model.status).toBe(200);
+    expect(model.headers.get('content-type')).toContain('application/x-openscad');
+    expect(await model.text()).toBe('cube(1);');
+
+    const traversal = await fetch(`${baseUrl}/models/%2e%2e/secret.scad`);
+    expect(traversal.status).toBe(404);
+  });
+
   it('rejects /mcp without bearer token when MCP_AUTH_TOKEN is configured', async () => {
     await server.close();
     await rm(tempDir, { recursive: true, force: true });
 
     tempDir = await mkdtemp(path.join(os.tmpdir(), 'openscad-http-auth-'));
+    const webDir = path.join(tempDir, 'web');
+    await mkdir(webDir, { recursive: true });
+    await writeFile(path.join(webDir, 'index.html'), '<title>Auth UI</title>');
     const config: AppConfig = {
       port: 0,
       host: '127.0.0.1',
       backend: 'mock',
       mcpAuthToken: 'test-secret',
       paths: {
-        workspaceDir: path.join(tempDir, 'workspace'),
-        artifactDir: path.join(tempDir, 'workspace', 'artifacts'),
-        jobTmpDir: path.join(tempDir, 'jobs')
+        workspaceDir: path.join(tempDir, 'workspace')
       },
       limits: {
         maxRenderMs: 1000,
         maxOutputBytes: 1024 * 1024,
         maxInputBytes: 1024 * 1024,
-        maxParallelJobs: 2,
-        cleanupJobs: true
+        maxParallelJobs: 2
       },
-      preview: {
-        enabled: true,
-        publicBaseUrl: 'http://127.0.0.1:3333',
-        ttlSeconds: 3600
-      }
+      webDir
     };
     const workspace = new WorkspaceManager(config.paths);
     await workspace.init();
@@ -193,8 +219,6 @@ describe('Streamable HTTP MCP smoke', () => {
       config,
       runner: new MockOpenScadRunner(),
       workspace,
-      artifacts: new ArtifactStore(config.paths.artifactDir, config.limits.maxOutputBytes),
-      previewTokens: new PreviewTokenStore(config.preview.ttlSeconds),
       semaphore: new Semaphore(config.limits.maxParallelJobs)
     };
 
@@ -203,7 +227,8 @@ describe('Streamable HTTP MCP smoke', () => {
     if (!address || typeof address === 'string') {
       throw new Error('Expected test HTTP server to listen on a TCP port.');
     }
-    url = `http://127.0.0.1:${address.port}/mcp`;
+    baseUrl = `http://127.0.0.1:${address.port}`;
+    url = `${baseUrl}/mcp`;
 
     const unauthorized = await fetch(url, {
       method: 'POST',
@@ -221,6 +246,9 @@ describe('Streamable HTTP MCP smoke', () => {
 
     expect(unauthorized.status).toBe(401);
 
+    const publicUi = await fetch(`${baseUrl}/`);
+    expect(publicUi.status).toBe(200);
+
     const authorized = await postJsonRpc(
       {
         jsonrpc: '2.0',
@@ -237,7 +265,7 @@ describe('Streamable HTTP MCP smoke', () => {
   });
 });
 
-async function exportRequest(scad: string, signal?: AbortSignal) {
+async function exportRequest(scad: string, signal?: AbortSignal, outputPath = 'output.stl') {
   const response = await fetch(url, {
     method: 'POST',
     signal,
@@ -248,7 +276,7 @@ async function exportRequest(scad: string, signal?: AbortSignal) {
       method: 'tools/call',
       params: {
         name: 'openscad_export_model',
-        arguments: { scad, format: 'stl' }
+        arguments: { scad, format: 'stl', outputPath }
       }
     })
   });

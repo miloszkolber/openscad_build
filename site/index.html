@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="MCP server that runs OpenSCAD through WebAssembly. Generate, preview, and export 3D models from AI agents without a native OpenSCAD install."
+      content="MCP server and browser that run OpenSCAD through WebAssembly. Generate, inspect, screenshot, and export 3D models from AI agents without a native OpenSCAD install."
     />
     <meta name="theme-color" content="#0369a1" />
     <link rel="canonical" href="https://suapapa.github.io/openscad-wasm-mcp/" />
@@ -14,7 +14,7 @@
     <meta property="og:title" content="openscad-wasm-mcp: OpenSCAD for AI agents" />
     <meta
       property="og:description"
-      content="MCP server that runs OpenSCAD through WebAssembly. Generate, preview, and export 3D models from AI agents without a native OpenSCAD install."
+      content="MCP server and browser that run OpenSCAD through WebAssembly. Generate, inspect, screenshot, and export 3D models from AI agents without a native OpenSCAD install."
     />
     <meta
       property="og:image"
@@ -27,7 +27,7 @@
     <meta name="twitter:title" content="openscad-wasm-mcp: OpenSCAD for AI agents" />
     <meta
       name="twitter:description"
-      content="MCP server that runs OpenSCAD through WebAssembly. Generate, preview, and export 3D models from AI agents without a native OpenSCAD install."
+      content="MCP server and browser that run OpenSCAD through WebAssembly. Generate, inspect, screenshot, and export 3D models from AI agents without a native OpenSCAD install."
     />
     <meta
       name="twitter:image"
@@ -172,8 +172,8 @@
             OpenSCAD for AI agents, no native install
           </h1>
           <p class="hero-lead" data-i18n="hero.lead">
-            An MCP server that runs OpenSCAD through WebAssembly in Node.js. Ask an agent for a
-            model, get a preview link and printable STL.
+            An MCP server and browser that run OpenSCAD through WebAssembly in Node.js. Ask an
+            agent for a model, review it in the bundled browser, and export a printable STL.
           </p>
           <div class="hero-ctas">
             <a
@@ -233,9 +233,10 @@
             <article class="flow-step">
               <div class="flow-copy">
                 <span class="step-index">02</span>
-                <h3 data-i18n="flow.2.title">Preview in the browser</h3>
+                <h3 data-i18n="flow.2.title">Browse and customize</h3>
                 <p data-i18n="flow.2.body">
-                  Interactive STL viewer links let you rotate and zoom before you download.
+                  Open the bundled browser to inspect mounted sources, adjust Customizer properties,
+                  and render in WebAssembly.
                 </p>
               </div>
               <figure class="shot">
@@ -247,7 +248,7 @@
                     ./public/01_interactive_preview.webp     1600w
                   "
                   sizes="(min-width: 900px) 55vw, 100vw"
-                  alt="Interactive 3D preview of an exported STL model"
+                  alt="OpenSCAD browser showing a mounted model"
                   width="1600"
                   height="1000"
                   loading="lazy"
@@ -261,7 +262,7 @@
                 <span class="step-index">03</span>
                 <h3 data-i18n="flow.3.title">Open the SCAD source</h3>
                 <p data-i18n="flow.3.body">
-                  Download the generated .scad and open it in desktop OpenSCAD.
+                  Read the generated .scad in the browser or open it in desktop OpenSCAD.
                 </p>
               </div>
               <figure class="shot">
@@ -328,14 +329,15 @@
             <article class="why-item">
               <h3 data-i18n="why.2.title">Allowlisted tool surface</h3>
               <p data-i18n="why.2.body">
-                Validate, export, preview, analyze, and manage workspace files. No shell, no raw CLI
-                args.
+                Validate, export, screenshot, analyze, and manage workspace files. No shell, no raw
+                CLI args.
               </p>
             </article>
             <article class="why-item">
-              <h3 data-i18n="why.3.title">Preview links built in</h3>
+              <h3 data-i18n="why.3.title">Screenshots for agents</h3>
               <p data-i18n="why.3.body">
-                Opaque tokens serve an interactive Three.js viewer from the same HTTP server.
+                Agents get inline PNG or WebP renders, with no temporary preview links or artifact
+                cleanup.
               </p>
             </article>
             <article class="why-item">
@@ -354,7 +356,7 @@
           <header class="section-head">
             <h2 id="tools-title" data-i18n="tools.title">What agents can call</h2>
             <p data-i18n="tools.lead">
-              Structured tools with Zod-validated inputs and artifact metadata in responses.
+              Structured tools with Zod-validated inputs and workspace paths in responses.
             </p>
           </header>
 
@@ -368,18 +370,14 @@
             <li>
               <span class="tool-name">openscad_export_model</span>
               <span class="tool-desc" data-i18n="tools.export"
-                >Export stl, 3mf, off, csg, dxf, or svg</span
+                >Export stl, 3mf, off, csg, dxf, or svg to the workspace</span
               >
             </li>
             <li>
-              <span class="tool-name">openscad_render_preview</span>
-              <span class="tool-desc" data-i18n="tools.preview"
-                >Interactive 3D preview link or WebP mesh preview</span
+              <span class="tool-name">openscad_screenshot</span>
+              <span class="tool-desc" data-i18n="tools.screenshot"
+                >Render a shaded PNG or WebP screenshot inline</span
               >
-            </li>
-            <li>
-              <span class="tool-name">openscad_create_preview_link</span>
-              <span class="tool-desc" data-i18n="tools.link">Create a browser STL viewer link</span>
             </li>
             <li>
               <span class="tool-name">openscad_analyze_model</span>
@@ -400,9 +398,10 @@
       <section class="section" id="start" aria-labelledby="start-title">
         <div class="wrap start-panel">
           <header class="section-head">
-            <h2 id="start-title" data-i18n="start.title">Start the MCP service in one command</h2>
+            <h2 id="start-title" data-i18n="start.title">Start the service in one command</h2>
             <p data-i18n="start.lead">
-              The service listens on http://127.0.0.1:3333/mcp. Point your MCP client at that URL.
+              The service listens on http://127.0.0.1:3333/mcp and serves the browser at
+              http://127.0.0.1:3333/.
             </p>
           </header>
 
@@ -476,7 +475,8 @@
           <div class="cta-panel">
             <h2 data-i18n="cta.title">Build models with your agent</h2>
             <p data-i18n="cta.body">
-              Clone the repo, start Compose, and connect an MCP client. MIT-licensed project source.
+              Clone the repo, start Compose, and connect an MCP client. The server is MIT-licensed;
+              the browser component is GPL.
             </p>
             <a
               class="btn btn-primary"
@@ -499,7 +499,8 @@
             <a href="mailto:i@homin.dev">i@homin.dev</a>
           </p>
           <p data-i18n="footer.license">
-            Project source: MIT. Runtime dependencies have their own licenses.
+            Server source: MIT. Browser component: GPLv2+. Runtime dependencies have their own
+            licenses.
           </p>
         </div>
         <a

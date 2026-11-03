@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OpenSCAD browser</title>
+  <link rel="icon" href="favicon.ico">
+  <script type="module" src="./model-viewer.min.js"></script>
+  <script src="./index.js" defer></script>
+  <style>
+    html,body,#root {margin:0;height:100dvh;display:flex;flex:1;flex-direction:column}
+    .absolute-fill {position:absolute;inset:0}
+  </style>
+</head>
+<body>
+  <noscript>This browser requires JavaScript for WebAssembly rendering.</noscript>
+  <div id="root"></div>
+</body>
+</html>

@@ -17,7 +17,6 @@ export interface LimitConfig {
   maxOutputBytes: number;
   maxInputBytes: number;
   maxParallelJobs: number;
-  cleanupJobs: boolean;
 }
 
 export class Semaphore {

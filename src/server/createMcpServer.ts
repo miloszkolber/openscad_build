@@ -5,7 +5,7 @@ export function createMcpServer(deps: ToolDependencies): McpServer {
   const server = new McpServer(
     {
       name: 'openscad-wasm-mcp',
-      version: '0.1.0'
+      version: '0.2.0'
     },
     {
       capabilities: {

@@ -5,3 +5,5 @@ coverage
 .git
 .env
 npm-debug.log*
+web/.assets
+web/public/fonts.zip
