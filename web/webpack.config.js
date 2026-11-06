@@ -28,13 +28,13 @@ const common = {
 
 export default [
   {...common, target: 'web', entry: './src/index.tsx',
-    output: {filename: 'index.js', path: dist},
+    output: {filename: 'index.js', path: dist, publicPath: ''},
     plugins: [...common.plugins, new CopyPlugin({patterns: [
       {from: path.join(webRoot, 'public'), to: '.'},
       {from: path.join(webRoot, '.assets/engine/openscad.wasm'), to: 'openscad.wasm'},
     ]})],
   },
   {...common, target: 'webworker', entry: './src/runner/openscad-worker.ts',
-    output: {filename: 'openscad-worker.js', path: dist, globalObject: 'self'},
+    output: {filename: 'openscad-worker.js', path: dist, globalObject: 'self', publicPath: ''},
   },
 ];
