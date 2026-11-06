@@ -32,6 +32,13 @@ This checklist tracks remaining work after the browser merge. The project builds
 - [x] Remove the host cleanup script and cron entry.
 - [x] Remove stale `.tmp` and artifact directories from the model repository.
 
+## Deferred dependency upgrades
+
+- [ ] Upgrade the web UI to React 19 with `@monaco-editor/react` 4.7.0 and coordinated React type packages.
+- [ ] Migrate the Monaco editor imports for monaco-editor 0.57 package exports.
+- [ ] Migrate `@gltf-transform/core` and `@gltf-transform/extensions` to 4.5 and resolve the typed-array boundary.
+- [ ] Evaluate TypeScript 7 and Vitest 5 after their ecosystem peers catch up.
+
 ## Merge review
 
 - [x] Restore input/output limits, source fidelity, and side-effect-free path rejection with regressions.
