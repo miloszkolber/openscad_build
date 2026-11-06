@@ -6,8 +6,9 @@ on:
     paths-ignore:
       - 'README.md'
       - 'AGENTS.md'
-      - 'TODO.md'
       - 'docs/**'
+      - 'mcp/README.md'
+      - 'web/README.md'
       - 'examples/**'
       - 'site/**'
       - 'LICENSE'
@@ -17,8 +18,9 @@ on:
     paths-ignore:
       - 'README.md'
       - 'AGENTS.md'
-      - 'TODO.md'
       - 'docs/**'
+      - 'mcp/README.md'
+      - 'web/README.md'
       - 'examples/**'
       - 'site/**'
       - 'LICENSE'
