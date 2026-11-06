@@ -126,7 +126,7 @@ jobs:
               })
             });
             const screenshotBody = await screenshot.text();
-            if (!screenshot.ok || !screenshotBody.includes('"ok":true') || !screenshotBody.includes('"format":"png"')) {
+            if (!screenshot.ok || !screenshotBody.includes(`"ok":true`) || !screenshotBody.includes(`"format":"png"`)) {
               throw new Error(`screenshot failed: ${screenshot.status}`);
             }
           '
