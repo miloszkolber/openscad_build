@@ -37,8 +37,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@gltf-transform/core": "4.1.1",
-    "@gltf-transform/extensions": "4.1.1",
+    "@gltf-transform/core": "4.1.4",
+    "@gltf-transform/extensions": "4.1.4",
     "@monaco-editor/loader": "^1.4.0",
     "@monaco-editor/react": "^4.6.0",
     "@types/express": "^5.0.5",
