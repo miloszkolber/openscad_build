@@ -11,6 +11,7 @@ on:
       - 'examples/**'
       - 'site/**'
       - 'LICENSE'
+      - '.github/dependabot.yml'
       - '.github/workflows/pages.yml'
   pull_request:
     paths-ignore:
@@ -21,6 +22,7 @@ on:
       - 'examples/**'
       - 'site/**'
       - 'LICENSE'
+      - '.github/dependabot.yml'
       - '.github/workflows/pages.yml'
   schedule:
     - cron: '0 4 * * 1'

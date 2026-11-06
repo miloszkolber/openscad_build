@@ -12,6 +12,10 @@ updates:
         update-types:
           - minor
           - patch
+        exclude-patterns:
+          - 'monaco-editor'
+          - '@gltf-transform/core'
+          - '@gltf-transform/extensions'
   - package-ecosystem: docker
     directory: /
     schedule:
