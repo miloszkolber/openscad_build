@@ -41,7 +41,7 @@ Published images:
 - `ghcr.io/miloszkolber/openscad-mcp:latest` tracks the default branch.
 - `ghcr.io/miloszkolber/openscad-mcp:sha-<commit>` identifies the source commit.
 
-Dependabot checks npm packages, the Docker base image and GitHub Actions weekly. Routine updates are merged only after the same checks pass. A scheduled weekly build uses the default branch, so dependency pull requests must land before that run to be included.
+Dependabot checks npm packages, the Docker base image and GitHub Actions weekly. Routine updates are merged only after the same checks pass. A scheduled weekly build uses the default branch, so dependency pull requests must land before that run to be included. The published image targets `linux/amd64`.
 
 This repository is based on the MIT-licensed [upstream project](https://github.com/suapapa/openscad-wasm-mcp). The runtime package and MCP server identifiers keep the upstream `openscad-wasm-mcp` name; `openscad_build` names this build repository and its image release process.
 
