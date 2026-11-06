@@ -1,11 +1,14 @@
+import { fork, type ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { Worker } from 'node:worker_threads';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenScadWasmRunner } from '../src/openscad/OpenScadWasmRunner.js';
+import { renderImageInProcess } from '../src/render/renderImageInProcess.js';
 import { Semaphore } from '../src/security/limits.js';
-import { renderImageInWorker } from '../src/render/renderImageInWorker.js';
 
 vi.mock('node:worker_threads', () => ({ Worker: vi.fn() }));
+vi.mock('node:child_process', () => ({ fork: vi.fn() }));
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -83,29 +86,6 @@ describe('WASM worker lifetime', () => {
     expect(Worker).not.toHaveBeenCalled();
   });
 
-  it('terminates image processing on cancellation and waits for actual exit', async () => {
-    const terminated = deferred<number>();
-    worker.terminate.mockReturnValue(terminated.promise);
-    const controller = new AbortController();
-    const task = renderImageInWorker(Buffer.alloc(0), {}, 100, 1024, controller.signal);
-    const rejection = expect(task).rejects.toThrow('aborted');
-    controller.abort();
-    await Promise.resolve();
-    expect(worker.terminate).toHaveBeenCalledOnce();
-    terminated.resolve(1);
-    await rejection;
-    expect(worker.eventNames()).toEqual([]);
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  it('times out image workers instead of blocking the HTTP process', async () => {
-    const task = renderImageInWorker(Buffer.alloc(0), {}, 100, 1024);
-    const rejection = expect(task).rejects.toThrow(/timed out/);
-    await vi.advanceTimersByTimeAsync(100);
-    await rejection;
-    expect(worker.terminate).toHaveBeenCalledOnce();
-  });
-
   it('awaits actual worker termination before rejecting cancellation', async () => {
     const terminated = deferred<number>();
     worker.terminate.mockReturnValue(terminated.promise);
@@ -139,6 +119,7 @@ describe('WASM worker lifetime', () => {
     await rejection;
     expect(worker.terminate).toHaveBeenCalledOnce();
     expect(worker.eventNames()).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('terminates and cleans up after successful output as well', async () => {
@@ -147,6 +128,110 @@ describe('WASM worker lifetime', () => {
     expect(await task).toMatchObject({ ok: true, data: Buffer.from([1, 2]) });
     expect(worker.terminate).toHaveBeenCalledOnce();
     expect(worker.eventNames()).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('image process lifetime', () => {
+  type FakeChild = EventEmitter & {
+    send: ReturnType<typeof vi.fn>;
+    kill: ReturnType<typeof vi.fn>;
+    stderr: PassThrough;
+    exitCode: number | null;
+    signalCode: NodeJS.Signals | null;
+  };
+
+  let child: FakeChild;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    child = Object.assign(new EventEmitter(), {
+      send: vi.fn(),
+      kill: vi.fn(() => true),
+      stderr: new PassThrough(),
+      exitCode: null,
+      signalCode: null
+    });
+    vi.mocked(fork).mockReset();
+    vi.mocked(fork).mockImplementation(function () {
+      return child as unknown as ChildProcess;
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function exitChild(code: number | null = 0, signal: NodeJS.Signals | null = null): void {
+    child.exitCode = code;
+    child.signalCode = signal;
+    child.emit('exit', code, signal);
+  }
+
+  it('does not spawn an image process for an aborted request', async () => {
+    await expect(
+      renderImageInProcess(Buffer.alloc(0), {}, 100, 1024, AbortSignal.abort())
+    ).rejects.toThrow('aborted');
+    expect(fork).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the image process exits before returning a result', async () => {
+    const task = renderImageInProcess(Buffer.alloc(0), {}, 100, 1024);
+    const rejection = expect(task).rejects.toThrow(
+      /exited before returning a result.*code 1.*boom/
+    );
+    child.stderr.emit('data', 'boom');
+    exitChild(1);
+    await rejection;
+    expect(child.eventNames()).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('terminates image processing on cancellation and waits for actual exit', async () => {
+    const controller = new AbortController();
+    const task = renderImageInProcess(Buffer.alloc(0), {}, 100, 1024, controller.signal);
+    const rejection = expect(task).rejects.toThrow('aborted');
+    controller.abort();
+    await Promise.resolve();
+    expect(child.kill).toHaveBeenCalledOnce();
+    let settled = false;
+    void task.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      }
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    exitChild(null, 'SIGKILL');
+    await rejection;
+    expect(child.eventNames()).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('times out image processes instead of blocking the HTTP process', async () => {
+    const task = renderImageInProcess(Buffer.alloc(0), {}, 100, 1024);
+    const rejection = expect(task).rejects.toThrow(/timed out/);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(child.kill).toHaveBeenCalledOnce();
+    exitChild(null, 'SIGKILL');
+    await rejection;
+  });
+
+  it('terminates and cleans up after successful output as well', async () => {
+    child.kill.mockImplementation(() => {
+      queueMicrotask(() => exitChild(null, 'SIGKILL'));
+      return true;
+    });
+    const task = renderImageInProcess(Buffer.alloc(0), {}, 100, 1024);
+    child.emit('message', {
+      result: { data: Buffer.from([1, 2]), format: 'png', width: 1, height: 1, summary: {} }
+    });
+    expect(await task).toMatchObject({ data: Buffer.from([1, 2]) });
+    expect(child.kill).toHaveBeenCalledOnce();
+    expect(child.eventNames()).toEqual([]);
     expect(vi.getTimerCount()).toBe(0);
   });
 });

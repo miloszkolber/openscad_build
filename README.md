@@ -82,7 +82,7 @@ Copy `.env.example` to `.env` and adjust the values.
 | `OPENSCAD_BACKEND` | `wasm` | `wasm` or `mock` |
 | `MCP_AUTH_TOKEN` | unset | Require `Authorization: Bearer <token>` on `/mcp` |
 
-`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Screenshots share this execution budget and concurrency permit across WASM export and mesh-image processing, which run in cancellable workers. Disconnecting an HTTP tool request or cancelling it through the MCP request signal terminates active workers. Queue waiting time is not included in the execution timeout.
+`MAX_RENDER_MS` is both the default and maximum WASM execution time. A tool's `timeoutMs` may shorten that limit but cannot extend it. Screenshots share this execution budget and concurrency permit across WASM export and mesh-image processing, which run in a cancellable WASM worker and a short-lived image child process. Disconnecting an HTTP tool request or cancelling it through the MCP request signal terminates active work. Queue waiting time is not included in the execution timeout.
 
 The browser UI and model files are public on the HTTP port. Protect them at a reverse proxy if the model repository is not public.
 
@@ -104,7 +104,7 @@ Use the mock backend for local development that should not depend on real WASM b
 OPENSCAD_BACKEND=mock npm run dev
 ```
 
-Build the server workers first with `npm run build:server` when running from TypeScript source. Tests build these workers automatically.
+Build the server worker and image-process entry points first with `npm run build:server` when running from TypeScript source. Tests build them automatically.
 
 Run the optional browser check against an already authorized CDP endpoint:
 

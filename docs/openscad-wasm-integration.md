@@ -67,7 +67,7 @@ The Docker image uses a read-only root filesystem. Required writes stay in the b
 
 ## Runtime Safety
 
-WASM execution runs inside a Node.js worker thread. If the render timeout expires, the main MCP process terminates the worker and returns an error diagnostic instead of waiting for a blocked `callMain()`. Screenshot mesh projection/encoding runs in a second cancellable worker, within the same semaphore permit and execution budget, so it cannot block HTTP or admit extra jobs.
+WASM execution runs inside a Node.js worker thread. If the render timeout expires, the main MCP process terminates the worker and returns an error diagnostic instead of waiting for a blocked `callMain()`. Screenshot mesh projection/encoding runs in a short-lived child process, within the same semaphore permit and execution budget, so it cannot block HTTP or admit extra jobs. The process exits after each render so the OS reclaims the image heap.
 
 Input size is enforced before files are written into the Emscripten filesystem, including decoded helper data. Combined source and helper inputs are limited to eight times the per-file limit or 128 MiB, whichever is smaller, with up to 200 helpers. Exceeding automatic staging limits fails explicitly rather than silently omitting files. Output limits apply to intermediate STL and inline images as well as saved files. Very complex models may still exhaust WASM memory inside the worker; those failures are returned as OpenSCAD diagnostics or worker errors instead of exposing shell/native process details.
 

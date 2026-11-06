@@ -67,7 +67,7 @@ Docker Compose binds only `127.0.0.1:3333:3333` and uses a read-only root filesy
 - `src/server/transport.ts`: Streamable HTTP wiring and MCP auth.
 - `src/server/webRoutes.ts`: browser UI static assets, `/api/files`, `/models/*`, and `/healthz`.
 - `src/tools/`: zod schemas and MCP tool handlers.
-- `src/render/`: cancellable STL mesh image worker, renderer and camera validation. Screenshot image processing holds the same job permit and execution deadline as its WASM export.
+- `src/render/`: cancellable STL mesh image child process, renderer and camera validation. Screenshot image processing holds the same job permit and execution deadline as its WASM export. The child exits after each render so the OS reclaims its heap.
 - `src/openscad/OpenScadRunner.ts`: runner interface and shared runner result types.
 - `src/openscad/OpenScadWasmRunner.ts`: real server-side `openscad-wasm` integration boundary.
 - `src/openscad/MockOpenScadRunner.ts`: deterministic runner for tests and development.

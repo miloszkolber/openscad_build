@@ -4,7 +4,7 @@ import * as z from 'zod/v4';
 import { assertWithinBytes } from '../security/limits.js';
 import { formatCamera } from '../render/camera.js';
 import type { ImageFormat } from '../render/StlImageRenderer.js';
-import { renderImageInWorker } from '../render/renderImageInWorker.js';
+import { renderImageInProcess } from '../render/renderImageInProcess.js';
 import { resolveSafePath } from '../workspace/safePaths.js';
 import type { OutputMetadata, ScreenshotToolResult } from '../types/toolResults.js';
 import type { ToolDependencies } from './index.js';
@@ -107,7 +107,7 @@ export async function handleScreenshot(
         deps.config.limits.maxOutputBytes
       );
       deps.signal?.throwIfAborted();
-      const image = await renderImageInWorker(
+      const image = await renderImageInProcess(
         result.data,
         {
           width: input.width,
