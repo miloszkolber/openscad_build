@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Development notes for agents working on `openscad-wasm-mcp`.
+Development notes for agents working on `openscad_build`.
 
 ## Project Contract
 
@@ -15,6 +15,14 @@ docker compose up --build
 The default MCP transport is Streamable HTTP on `/mcp`, port `3333`. The browser UI is served from `/` on the same port. Keep server creation separate from transport wiring so stdio can be added later.
 
 There are no temporary preview links, artifact stores, job directories, or cleanup scripts. Agents work on SCAD files in the mounted workspace. Explicit export and screenshot paths are the only files the server writes.
+
+## Builds and Releases
+
+`.github/workflows/build.yml` runs the typecheck, lint, test and build checks on pushes, pull requests and a weekly schedule, then builds and smoke-tests the image once. Only default-branch runs publish `ghcr.io/miloszkolber/openscad-mcp:latest` and `ghcr.io/miloszkolber/openscad-mcp:sha-<commit>`.
+
+`.github/dependabot.yml` owns weekly npm, Docker base-image and GitHub Actions updates. Keep it aligned with the actual package manifests, Dockerfile and workflow files. Update the lockfile with npm inside the development sandbox and verify with the commands below before merging dependency changes.
+
+`docker-compose_prebuilt.yml` and `site/docker-compose.yml` must stay byte-identical and default to the published image. `OPENSCAD_IMAGE` overrides it for a locally built image.
 
 ## Development Commands
 

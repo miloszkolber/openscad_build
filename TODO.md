@@ -21,6 +21,10 @@ This checklist tracks remaining work after the browser merge. The project builds
 
 ## Documentation and Deployment
 
+- [x] Rename the repository and image release process to `openscad_build`.
+- [x] Publish `ghcr.io/miloszkolber/openscad-mcp` from a weekly, push and manual image workflow.
+- [x] Add weekly Dependabot updates for npm, the Docker base image, and GitHub Actions.
+- [x] Point the prebuilt Compose files and landing page at the new repository and published image.
 - [x] Update README, AGENTS.md, development notes, and WASM integration notes.
 - [x] Update Compose files and `.env.example`.
 - [x] Update the landing page copy and translations for the merged browser and screenshot tool.

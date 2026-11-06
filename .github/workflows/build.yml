@@ -1,0 +1,132 @@
+name: Build image
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'TODO.md'
+      - 'docs/**'
+      - 'examples/**'
+      - 'site/**'
+      - 'LICENSE'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'TODO.md'
+      - 'docs/**'
+      - 'examples/**'
+      - 'site/**'
+      - 'LICENSE'
+      - '.github/workflows/pages.yml'
+  schedule:
+    - cron: '0 4 * * 1'
+      timezone: Europe/Warsaw
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run prepare:assets
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  image:
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the image once
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: openscad-mcp:test
+          cache-from: type=gha
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max' || '' }}
+      - name: Smoke-test the tested image
+        run: |
+          set -euo pipefail
+          container="openscad-smoke-${RANDOM}"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --name "$container" --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:size=256m \
+            --volume "$PWD/examples:/workspace:ro" \
+            openscad-mcp:test
+          ready=
+          for _ in $(seq 1 60); do
+            if docker exec "$container" node -e "fetch('http://127.0.0.1:3333/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test -n "$ready"
+          docker exec "$container" node --input-type=module -e '
+            const headers = {
+              "content-type": "application/json",
+              accept: "application/json, text/event-stream"
+            };
+            const response = await fetch("http://127.0.0.1:3333/mcp", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" })
+            });
+            const body = await response.text();
+            if (!response.ok || !body.includes("openscad_validate")) {
+              throw new Error(`MCP tools/list failed: ${response.status} ${body}`);
+            }
+            const files = await fetch("http://127.0.0.1:3333/api/files");
+            if (!files.ok) throw new Error(`file index failed: ${files.status}`);
+          '
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the tested image
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/openscad-mcp"
+          docker tag openscad-mcp:test "$image:latest"
+          docker tag openscad-mcp:test "$image:sha-${SHA:0:12}"
+          docker push "$image:latest"
+          docker push "$image:sha-${SHA:0:12}"

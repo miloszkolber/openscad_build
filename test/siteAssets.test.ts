@@ -10,7 +10,7 @@ describe('site assets and compose download links', () => {
     const prebuiltCompose = readFileSync(resolve(rootDir, 'docker-compose_prebuilt.yml'), 'utf-8');
     const siteCompose = readFileSync(resolve(siteDir, 'docker-compose.yml'), 'utf-8');
     expect(siteCompose).toBe(prebuiltCompose);
-    expect(prebuiltCompose).toContain('${OPENSCAD_IMAGE:?');
+    expect(prebuiltCompose).toContain('${OPENSCAD_IMAGE:-ghcr.io/miloszkolber/openscad-mcp:latest}');
     expect(prebuiltCompose).not.toContain('image: ghcr.io/suapapa/openscad-wasm-mcp:latest');
   });
 
@@ -49,7 +49,7 @@ describe('site assets and compose download links', () => {
   it('verifies site/index.html links to repository README in start note', () => {
     const indexHtml = readFileSync(resolve(siteDir, 'index.html'), 'utf-8');
     expect(indexHtml).toContain('data-i18n-html="start.note"');
-    expect(indexHtml).toContain('href="https://github.com/suapapa/openscad-wasm-mcp#readme"');
+    expect(indexHtml).toContain('href="https://github.com/miloszkolber/openscad_build#readme"');
   });
 
   it('verifies start.note includes README link and mentions Hermes in all supported languages', async () => {
@@ -63,7 +63,7 @@ describe('site assets and compose download links', () => {
       expect(title).toBeTruthy();
       expect(title).not.toBe('start.title');
       const noteHtml = t(lang, 'start.note');
-      expect(noteHtml).toContain('href="https://github.com/suapapa/openscad-wasm-mcp#readme"');
+      expect(noteHtml).toContain('href="https://github.com/miloszkolber/openscad_build#readme"');
       expect(noteHtml).toContain('>README</a>');
       expect(noteHtml).toContain('Hermes');
     }

@@ -1,6 +1,6 @@
-# openscad-wasm-mcp
+# openscad_build
 
-An OpenSCAD Model Context Protocol (MCP) server and browser UI. The server uses the `openscad-wasm` npm package and the browser uses a checksum-pinned web WASM build, so no native OpenSCAD installation is required.
+OpenSCAD Model Context Protocol (MCP) server and browser UI, maintained here as `openscad_build` and published weekly as a container image. The server uses the `openscad-wasm` npm package and the browser uses a checksum-pinned web WASM build, so no native OpenSCAD installation is required.
 
 The service has two surfaces on one port:
 
@@ -25,12 +25,25 @@ volumes:
   - /path/to/models:/workspace:rw
 ```
 
-The prebuilt Compose download requires `OPENSCAD_IMAGE` to name an image built from this merged checkout. The upstream project's published image does not contain these local changes. To build and use a local image without a registry:
+`docker-compose_prebuilt.yml` pulls `ghcr.io/miloszkolber/openscad-mcp:latest`, the image published from this repository. To build and use a local image without a registry instead:
 
 ```sh
 docker build -t openscad-mcp:local .
 OPENSCAD_IMAGE=openscad-mcp:local docker compose -f docker-compose_prebuilt.yml up -d
 ```
+
+## Builds and Releases
+
+The `Build image` workflow runs on every push to `main`, on pull requests, manually, and every Monday at 04:00 Europe/Warsaw. It typechecks, lints, tests and builds the project, then builds the container once and smoke-tests its health endpoint, MCP `tools/list` surface and workspace file index before publishing the tested image.
+
+Published images:
+
+- `ghcr.io/miloszkolber/openscad-mcp:latest` tracks the default branch.
+- `ghcr.io/miloszkolber/openscad-mcp:sha-<commit>` identifies the source commit.
+
+Dependabot checks npm packages, the Docker base image and GitHub Actions weekly. Routine updates are merged only after the same checks pass. A scheduled weekly build uses the default branch, so dependency pull requests must land before that run to be included.
+
+This repository is based on the MIT-licensed [upstream project](https://github.com/suapapa/openscad-wasm-mcp). The runtime package and MCP server identifiers keep the upstream `openscad-wasm-mcp` name; `openscad_build` names this build repository and its image release process.
 
 ## MCP Tools
 

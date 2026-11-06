@@ -1,6 +1,6 @@
 services:
   openscad-mcp:
-    image: ${OPENSCAD_IMAGE:?Set OPENSCAD_IMAGE to an image built from the merged checkout}
+    image: ${OPENSCAD_IMAGE:-ghcr.io/miloszkolber/openscad-mcp:latest}
     env_file:
       - path: .env
         required: false
