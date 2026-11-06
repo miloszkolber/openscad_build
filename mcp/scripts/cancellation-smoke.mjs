@@ -11,7 +11,7 @@ const serverPID = fs
   .filter((p) => /^\d+$/.test(p))
   .find((p) => {
     try {
-      return fs.readFileSync(`/proc/${p}/cmdline`, 'utf8') === 'node\0dist/src/index.js\0';
+      return fs.readFileSync(`/proc/${p}/cmdline`, 'utf8') === 'node\0mcp/dist/index.js\0';
     } catch {
       return false;
     }

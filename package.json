@@ -1,70 +1,46 @@
 {
-  "name": "openscad-wasm-mcp",
+  "name": "openscad",
   "version": "0.2.0",
-  "description": "OpenSCAD MCP server and browser powered by openscad-wasm without a native OpenSCAD install.",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "description": "OpenSCAD MCP server and browser powered by openscad-wasm.",
   "license": "MIT",
+  "workspaces": [
+    "mcp",
+    "web"
+  ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "dev:stdio": "tsx src/stdio.ts",
-    "start": "node dist/src/index.js",
-    "start:stdio": "node dist/src/stdio.js",
-    "mcp:inspector": "scripts/mcp-inspector.sh",
-    "prepare:assets": "node web/scripts/prepare-assets.mjs",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && npm run build:server && npm run build:web",
-    "build:server": "tsc -p tsconfig.build.json",
-    "build:web": "webpack --config web/webpack.config.js",
-    "check:web": "tsc -p web/tsconfig.json --noEmit",
-    "pretest": "npm run build:server",
+    "dev": "npm run dev -w mcp",
+    "dev:stdio": "npm run dev:stdio -w mcp",
+    "start": "npm run start -w mcp",
+    "start:stdio": "npm run start:stdio -w mcp",
+    "prepare:assets": "npm run prepare:assets -w web",
+    "build": "npm run build -w mcp && npm run build -w web",
+    "build:mcp": "npm run build -w mcp",
+    "build:web": "npm run build -w web",
+    "typecheck": "npm run typecheck -w mcp && npm run typecheck -w web",
+    "pretest": "npm run build:mcp",
     "test": "vitest run",
-    "test:browser": "node web/tests/browser.mjs",
+    "test:browser": "npm run test:browser -w web",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc -p tsconfig.json --noEmit && npm run check:web"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.2",
-    "express": "^5.1.0",
-    "mime-types": "^3.0.1",
-    "openscad-wasm": "^0.0.4",
-    "sharp": "^0.35.5",
-    "zod": "^4.6.7"
+    "mcp:inspector": "mcp/scripts/mcp-inspector.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@gltf-transform/core": "4.1.1",
-    "@gltf-transform/extensions": "4.1.1",
-    "@monaco-editor/loader": "^1.4.0",
-    "@monaco-editor/react": "^4.6.0",
-    "@types/express": "^5.0.5",
-    "@types/filesystem": "^0.0.36",
-    "@types/mime-types": "^3.0.1",
     "@types/node": "^26.6.6",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "copy-webpack-plugin": "^14.0.0",
-    "css-loader": "^7.1.2",
     "eslint": "^10.14.0",
-    "monaco-editor": "^0.52.2",
     "prettier": "^3.6.2",
-    "puppeteer-core": "^25.3.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "style-loader": "^4.0.0",
-    "ts-loader": "^9.5.1",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.46.4",
     "vitest": "^5.1.0",
-    "webpack": "^5.108.4",
-    "webpack-cli": "^7.2.1"
+    "typescript7": "npm:typescript@^7.0.2"
   },
   "overrides": {
-    "minimatch": "^11.0.1"
+    "minimatch": "^11.0.1",
+    "dompurify": "^3.4.17"
   }
 }

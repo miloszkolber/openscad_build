@@ -24,7 +24,7 @@ interface ImageProcessResponse {
 
 // Source-mode tests/dev use the compiled entry point, just as the server build does.
 const processPath = import.meta.url.endsWith('.ts')
-  ? new URL('../../dist/src/render/StlImageProcess.js', import.meta.url)
+  ? new URL('../../dist/render/StlImageProcess.js', import.meta.url)
   : new URL('./StlImageProcess.js', import.meta.url);
 
 export async function renderImageInProcess(

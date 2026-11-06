@@ -35,7 +35,9 @@ export interface AppConfig {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = envSchema.parse(env);
   const workspaceDir = path.resolve(parsed.WORKSPACE_DIR);
-  const webDir = path.resolve(parsed.WEB_DIR?.trim() || path.join(process.cwd(), 'dist/web'));
+  const webDir = path.resolve(
+    parsed.WEB_DIR?.trim() || path.resolve(import.meta.dirname, '../../web/dist')
+  );
 
   return {
     port: parsed.PORT,

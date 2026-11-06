@@ -1,7 +1,7 @@
 import {CSSProperties, useContext} from 'react';
 import {ModelContext} from './contexts';
 
-declare global {
+declare module 'react' {
   namespace JSX { interface IntrinsicElements { 'model-viewer': any; } }
 }
 

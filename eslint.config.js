@@ -6,18 +6,17 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     ignores: [
-      'dist/**',
+      '**/dist/**',
       'node_modules/**',
-      'workspace/**',
+      'web/**',
+      'site/**',
       'coverage/**',
       'prettier.config.cjs',
-      'site/**',
-      '.agents/**',
-      'web/**'
+      '.agents/**'
     ]
   },
   {
-    files: ['**/*.ts'],
+    files: ['mcp/**/*.ts'],
     languageOptions: {
       parserOptions: {
         projectService: true,

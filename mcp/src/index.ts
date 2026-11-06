@@ -15,6 +15,6 @@ process.on('SIGTERM', () => {
 });
 
 console.log(
-  `openscad-wasm-mcp listening on http://${config.host}:${config.port}/mcp using ${config.backend} backend`
+  `openscad listening on http://${config.host}:${config.port}/mcp using ${config.backend} backend`
 );
 console.log(`OpenSCAD browser UI: http://${config.host}:${config.port}/`);

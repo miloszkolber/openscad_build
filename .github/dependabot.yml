@@ -12,31 +12,6 @@ updates:
         update-types:
           - minor
           - patch
-    ignore:
-      - dependency-name: monaco-editor
-        versions:
-          - '>=0.53.0'
-      - dependency-name: '@gltf-transform/core'
-        versions:
-          - '>=4.2.0'
-      - dependency-name: '@gltf-transform/extensions'
-        versions:
-          - '>=4.2.0'
-      - dependency-name: react
-        versions:
-          - '>=19.0.0'
-      - dependency-name: react-dom
-        versions:
-          - '>=19.0.0'
-      - dependency-name: '@types/react'
-        versions:
-          - '>=19.0.0'
-      - dependency-name: '@types/react-dom'
-        versions:
-          - '>=19.0.0'
-      - dependency-name: typescript
-        versions:
-          - '>=7.0.0'
   - package-ecosystem: docker
     directory: /
     schedule:

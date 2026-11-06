@@ -37,9 +37,9 @@ export function registerWebRoutes(app: Express, config: AppConfig): void {
         throw new Error('Workspace is not a directory.');
       }
       await readdir(config.paths.workspaceDir);
-      res.json({ ok: true, name: 'openscad-wasm-mcp' });
+      res.json({ ok: true, name: 'openscad' });
     } catch {
-      res.status(503).json({ ok: false, name: 'openscad-wasm-mcp' });
+      res.status(503).json({ ok: false, name: 'openscad' });
     }
   });
 

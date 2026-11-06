@@ -1,6 +1,6 @@
 // Portions of this file are Copyright 2021 Google LLC, and licensed under GPL2+. See COPYING.
 
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import * as monaco from 'monaco-editor/editor/editor.api';
 import { ProcessStreams, spawnOpenSCAD } from "./openscad-runner.ts";
 import { processMergedOutputs } from "./output-parser.ts";
 import { AbortablePromise, turnIntoDelayableExecution } from '../utils.ts';

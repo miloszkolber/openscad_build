@@ -31,7 +31,7 @@ export class OpenScadWasmRunner implements OpenScadRunner {
     signal?.throwIfAborted();
     const timeoutMs = Math.min(requestedTimeoutMs, this.maxTimeoutMs);
     const workerUrl = import.meta.url.endsWith('.ts')
-      ? new URL('../../dist/src/openscad/OpenScadWasmWorker.js', import.meta.url)
+      ? new URL('../../dist/openscad/OpenScadWasmWorker.js', import.meta.url)
       : new URL('./OpenScadWasmWorker.js', import.meta.url);
     const worker = new Worker(workerUrl, {
       workerData: request

@@ -1,0 +1,32 @@
+{
+  "name": "openscad-mcp",
+  "version": "0.2.0",
+  "private": true,
+  "description": "OpenSCAD MCP server runtime powered by openscad-wasm.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:stdio": "tsx src/stdio.ts",
+    "start": "node dist/index.js",
+    "start:stdio": "node dist/stdio.js",
+    "build": "node ../node_modules/typescript7/bin/tsc -p tsconfig.build.json",
+    "typecheck": "node ../node_modules/typescript7/bin/tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "express": "^5.1.0",
+    "mime-types": "^3.0.1",
+    "openscad-wasm": "^0.0.4",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.5",
+    "@types/mime-types": "^3.0.1",
+    "tsx": "^4.20.6"
+  }
+}

@@ -4,7 +4,7 @@ import { registerTools, type ToolDependencies } from '../tools/index.js';
 export function createMcpServer(deps: ToolDependencies): McpServer {
   const server = new McpServer(
     {
-      name: 'openscad-wasm-mcp',
+      name: 'openscad',
       version: '0.2.0'
     },
     {

@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AbortablePromise, turnIntoDelayableExecution } from '../web/src/utils.js';
+import { AbortablePromise, turnIntoDelayableExecution } from '../src/utils.js';
 
 afterEach(() => {
   vi.useRealTimers();

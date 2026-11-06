@@ -7,7 +7,7 @@ MCP_ADDR="${MCP_ADDR:-${MCP_URL:-$DEFAULT_MCP_ADDR}}"
 usage() {
   cat <<EOF
 Usage:
-  scripts/mcp-inspector.sh [MCP_URL] [inspector args...]
+  mcp/scripts/mcp-inspector.sh [MCP_URL] [inspector args...]
   npm run mcp:inspector -- [MCP_URL] [inspector args...]
 
 Environment:

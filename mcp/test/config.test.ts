@@ -29,11 +29,11 @@ describe('loadConfig', () => {
     expect(config.mcpAuthToken).toBe('secret');
   });
 
-  it('defaults the web directory to dist/web under the current directory', () => {
+  it('defaults the web directory to the sibling web build', () => {
     const env = { ...process.env };
     delete env.WEB_DIR;
     const config = loadConfig(env);
-    expect(config.webDir).toBe(path.resolve(process.cwd(), 'dist/web'));
+    expect(config.webDir).toBe(path.resolve(import.meta.dirname, '../../web/dist'));
   });
 
   it('ignores a blank MCP auth token', () => {

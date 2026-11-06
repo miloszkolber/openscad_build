@@ -7,7 +7,6 @@
       "ES2022",
       "WebWorker"
     ],
-    "rootDir": "src",
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -22,19 +21,22 @@
     "jsx": "react-jsx",
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "declaration": true,
-    "baseUrl": "src",
     "paths": {
-      "*": ["*"]
-    }
+      "*": [
+        "./src/*"
+      ]
+    },
+    "types": [
+      "node"
+    ]
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.js"
+    "src/**/*.js",
+    "test/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "src/wasm/*.js"
+    "node_modules"
   ]
 }

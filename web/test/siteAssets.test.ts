@@ -3,14 +3,14 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('site assets and compose download links', () => {
-  const rootDir = resolve(__dirname, '..');
+  const rootDir = resolve(import.meta.dirname, '../..');
   const siteDir = resolve(rootDir, 'site');
 
   it('ensures site/docker-compose.yml matches docker-compose_prebuilt.yml', () => {
     const prebuiltCompose = readFileSync(resolve(rootDir, 'docker-compose_prebuilt.yml'), 'utf-8');
     const siteCompose = readFileSync(resolve(siteDir, 'docker-compose.yml'), 'utf-8');
     expect(siteCompose).toBe(prebuiltCompose);
-    expect(prebuiltCompose).toContain('${OPENSCAD_IMAGE:-ghcr.io/miloszkolber/openscad-mcp:latest}');
+    expect(prebuiltCompose).toContain('${OPENSCAD_IMAGE:-ghcr.io/miloszkolber/openscad:latest}');
     expect(prebuiltCompose).not.toContain('image: ghcr.io/suapapa/openscad-wasm-mcp:latest');
   });
 
@@ -32,7 +32,7 @@ describe('site assets and compose download links', () => {
 
   it('verifies i18n translations include download keys for all supported languages', async () => {
     // @ts-expect-error Untyped browser module
-    const { SUPPORTED, t } = (await import('../site/js/i18n.js')) as {
+    const { SUPPORTED, t } = (await import('../../site/js/i18n.js')) as {
       SUPPORTED: string[];
       t: (lang: string, key: string) => string;
     };
@@ -54,7 +54,7 @@ describe('site assets and compose download links', () => {
 
   it('verifies start.note includes README link and mentions Hermes in all supported languages', async () => {
     // @ts-expect-error Untyped browser module
-    const { SUPPORTED, t } = (await import('../site/js/i18n.js')) as {
+    const { SUPPORTED, t } = (await import('../../site/js/i18n.js')) as {
       SUPPORTED: string[];
       t: (lang: string, key: string) => string;
     };

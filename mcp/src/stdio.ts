@@ -20,4 +20,4 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-console.error(`openscad-wasm-mcp stdio server using ${config.backend} backend`);
+console.error(`openscad stdio server using ${config.backend} backend`);

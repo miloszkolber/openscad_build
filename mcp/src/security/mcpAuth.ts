@@ -21,7 +21,7 @@ function parseBearerToken(authorizationHeader: string | undefined): string | nul
 }
 
 function sendUnauthorized(res: Response): void {
-  res.setHeader('WWW-Authenticate', 'Bearer realm="openscad-wasm-mcp"');
+  res.setHeader('WWW-Authenticate', 'Bearer realm="openscad"');
   res.status(401).json({
     jsonrpc: '2.0',
     error: {

@@ -18,7 +18,7 @@ function baseConfig(mcpAuthToken?: string): AppConfig {
       maxInputBytes: 1024,
       maxParallelJobs: 1
     },
-    webDir: '/app/dist/web'
+    webDir: '/app/web/dist'
   };
 }
 
@@ -69,7 +69,7 @@ describe('createMcpAuthMiddleware', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(401);
-    expect(res.headers['WWW-Authenticate']).toBe('Bearer realm="openscad-wasm-mcp"');
+    expect(res.headers['WWW-Authenticate']).toBe('Bearer realm="openscad"');
     expect(res.body).toMatchObject({
       error: { message: expect.stringContaining('Unauthorized') }
     });

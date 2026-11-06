@@ -1,4 +1,4 @@
-# Hermes Agent MCP example for openscad-wasm-mcp
+# Hermes Agent MCP example for openscad
 #
 # 1. Set the same secret in the MCP server `.env`:
 #    MCP_AUTH_TOKEN=change-me-to-a-long-random-secret
@@ -7,7 +7,7 @@
 # 3. Merge this block into ~/.hermes/config.yaml
 
 mcp_servers:
-  openscad-wasm:
+  openscad:
     url: "http://127.0.0.1:3333/mcp"
     headers:
       Authorization: "Bearer ${OPENS_SCAD_MCP_TOKEN}"

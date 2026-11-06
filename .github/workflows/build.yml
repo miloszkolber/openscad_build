@@ -74,7 +74,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           load: true
-          tags: openscad-mcp:test
+          tags: openscad:test
           cache-from: type=gha
           cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max' || '' }}
       - name: Smoke-test the tested image
@@ -83,20 +83,20 @@ jobs:
           container="openscad-smoke-${RANDOM}"
           trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
           docker run --detach --name "$container" --network none --read-only \
-            --cap-drop ALL --security-opt no-new-privileges \
+            --cap-drop ALL --security-opt no-new-privileges --init \
             --tmpfs /tmp:size=256m \
             --volume "$PWD/examples:/workspace:ro" \
-            openscad-mcp:test
+            openscad:test
           ready=
           for _ in $(seq 1 60); do
-            if docker exec "$container" node -e "fetch('http://127.0.0.1:3333/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; then
+            if docker exec "$container" /usr/local/bin/node -e "fetch('http://127.0.0.1:3333/healthz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"; then
               ready=1
               break
             fi
             sleep 1
           done
           test -n "$ready"
-          docker exec "$container" node --input-type=module -e '
+          docker exec "$container" /usr/local/bin/node --input-type=module -e '
             const headers = {
               "content-type": "application/json",
               accept: "application/json, text/event-stream"
@@ -112,6 +112,23 @@ jobs:
             }
             const files = await fetch("http://127.0.0.1:3333/api/files");
             if (!files.ok) throw new Error(`file index failed: ${files.status}`);
+            const screenshot = await fetch("http://127.0.0.1:3333/mcp", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                jsonrpc: "2.0",
+                id: 2,
+                method: "tools/call",
+                params: {
+                  name: "openscad_screenshot",
+                  arguments: { scad: "cube(1);", width: 64, height: 64 }
+                }
+              })
+            });
+            const screenshotBody = await screenshot.text();
+            if (!screenshot.ok || !screenshotBody.includes('"ok":true') || !screenshotBody.includes('"format":"png"')) {
+              throw new Error(`screenshot failed: ${screenshot.status}`);
+            }
           '
       - name: Log in to GHCR
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -127,8 +144,8 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          image="ghcr.io/${OWNER,,}/openscad-mcp"
-          docker tag openscad-mcp:test "$image:latest"
-          docker tag openscad-mcp:test "$image:sha-${SHA:0:12}"
+          image="ghcr.io/${OWNER,,}/openscad"
+          docker tag openscad:test "$image:latest"
+          docker tag openscad:test "$image:sha-${SHA:0:12}"
           docker push "$image:latest"
           docker push "$image:sha-${SHA:0:12}"
