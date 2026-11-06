@@ -8,11 +8,11 @@ web/public/fonts.zip
 coverage
 .git
 .github
-site
-docs
+openspec
+compose
+scripts
 examples
 .env
 workspace
 README.md
 AGENTS.md
-TODO.md

@@ -9,7 +9,7 @@ export default tseslint.config(
       '**/dist/**',
       'node_modules/**',
       'web/**',
-      'site/**',
+      'scripts/**',
       'coverage/**',
       'prettier.config.cjs',
       '.agents/**'

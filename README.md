@@ -5,21 +5,21 @@ OpenSCAD Model Context Protocol server and browser UI. OpenSCAD runs in WebAssem
 ## Run
 
 ```sh
-docker compose -f docker-compose_prebuilt.yml up -d
+docker compose -f compose/docker-compose.yaml up -d
 ```
 
 - Browser: `http://127.0.0.1:3333/`
 - MCP: `http://127.0.0.1:3333/mcp`
-- Workspace: `./workspace`, mounted at `/workspace`
+- Workspace: `${WORKSPACE_PATH:-./workspace}` from the Compose directory, mounted at `/workspace`
 
-The prebuilt Compose file pulls `ghcr.io/miloszkolber/openscad:latest` for `linux/amd64`. To use a local build instead:
+The Compose example pulls `ghcr.io/miloszkolber/openscad:latest` for `linux/amd64`. To use a local build instead:
 
 ```sh
-docker build -t openscad:local .
-OPENSCAD_IMAGE=openscad:local docker compose -f docker-compose_prebuilt.yml up -d
+docker build -f docker/openscad.Dockerfile -t openscad:local .
+OPENSCAD_IMAGE=openscad:local docker compose -f compose/docker-compose.yaml up -d
 ```
 
-`MCP_AUTH_TOKEN` protects `/mcp`. `WORKSPACE_DIR`, `MAX_RENDER_MS`, `MAX_OUTPUT_MB`, `MAX_INPUT_MB` and `MAX_PARALLEL_JOBS` are documented in `.env.example`. The browser and model routes stay public; use a reverse proxy for private repositories.
+`MCP_AUTH_TOKEN` protects `/mcp`. `WORKSPACE_DIR`, `MAX_RENDER_MS`, `MAX_OUTPUT_MB`, `MAX_INPUT_MB` and `MAX_PARALLEL_JOBS` are documented in [compose/.env.example](compose/.env.example). The browser and model routes stay public; use a reverse proxy for private repositories.
 
 ## Tools
 
@@ -29,7 +29,7 @@ OPENSCAD_IMAGE=openscad:local docker compose -f docker-compose_prebuilt.yml up -
 - `openscad_analyze_model`: compute the bounding box and triangle count.
 - `workspace_list_files`, `workspace_read_file`, `workspace_write_file`, `workspace_delete_file`: manage workspace files.
 
-All OpenSCAD tools accept `path` or `scad`. A workspace `path` stages sibling files for relative `include` and `import` statements. Client setup and raw JSON examples are in [docs/mcp-clients.md](docs/mcp-clients.md).
+All OpenSCAD tools accept `path` or `scad`. A workspace `path` stages sibling files for relative `include` and `import` statements. Client setup and raw JSON examples are in [openspec/references/mcp-clients.md](openspec/references/mcp-clients.md).
 
 ## Build and release
 
@@ -49,9 +49,14 @@ npm run build
 npm test
 npm run lint
 npm run typecheck
+npm run check:docs
 ```
 
-`mcp/` contains the MCP runtime, `web/` the browser UI and `site/` the landing page. The mock backend is available with `OPENSCAD_BACKEND=mock npm run dev`. The browser check accepts an already authorized CDP endpoint: `APP_URL=http://127.0.0.1:3333 BROWSER_URL=http://127.0.0.1:9222 npm run test:browser`.
+`mcp/` contains the MCP runtime, `web/` the browser UI, `docker/` the image recipe and `compose/` the deployment example. The mock backend is available with `OPENSCAD_BACKEND=mock npm run dev`. The browser check accepts an already authorized CDP endpoint: `APP_URL=http://127.0.0.1:3333 BROWSER_URL=http://127.0.0.1:9222 npm run test:browser`.
+
+## Documentation
+
+[`openspec/`](openspec/README.md) is the single documentation and planning tree: implemented [contracts](openspec/specs/), scoped [changes](openspec/changes/) and the [deferred backlog](openspec/backlog.md).
 
 ## Licensing
 

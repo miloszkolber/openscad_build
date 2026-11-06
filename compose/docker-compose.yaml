@@ -1,7 +1,6 @@
 services:
   openscad:
-    build: .
-    image: openscad:local
+    image: ${OPENSCAD_IMAGE:-ghcr.io/miloszkolber/openscad:latest}
     env_file:
       - path: .env
         required: false
@@ -19,7 +18,7 @@ services:
     ports:
       - '127.0.0.1:3333:3333'
     volumes:
-      - ./workspace:/workspace:rw
+      - ${WORKSPACE_PATH:-./workspace}:/workspace:rw
     tmpfs:
       - /tmp:size=256m
     read_only: true

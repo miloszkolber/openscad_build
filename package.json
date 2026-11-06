@@ -13,21 +13,24 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "npm run dev -w mcp",
-    "dev:stdio": "npm run dev:stdio -w mcp",
-    "start": "npm run start -w mcp",
-    "start:stdio": "npm run start:stdio -w mcp",
-    "prepare:assets": "npm run prepare:assets -w web",
     "build": "npm run build -w mcp && npm run build -w web",
     "build:mcp": "npm run build -w mcp",
     "build:web": "npm run build -w web",
-    "typecheck": "npm run typecheck -w mcp && npm run typecheck -w web",
+    "check:docs": "node scripts/check-docs.mjs",
+    "dev": "npm run dev -w mcp",
+    "dev:stdio": "npm run dev:stdio -w mcp",
+    "format": "prettier --write .",
+    "lint": "eslint .",
+    "mcp:inspector": "mcp/scripts/mcp-inspector.sh",
+    "prepare:assets": "npm run prepare:assets -w web",
     "pretest": "npm run build:mcp",
+    "start": "npm run start -w mcp",
+    "start:stdio": "npm run start:stdio -w mcp",
     "test": "vitest run",
     "test:browser": "npm run test:browser -w web",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "mcp:inspector": "mcp/scripts/mcp-inspector.sh"
+    "test:docs": "node --test scripts/check-docs.test.mjs",
+    "typecheck": "npm run typecheck -w mcp && npm run typecheck -w web",
+    "validate:openspec": "npx --yes @fission-ai/openspec@1.16.0 validate --all --strict"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

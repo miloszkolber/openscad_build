@@ -6,26 +6,28 @@ on:
     paths-ignore:
       - 'README.md'
       - 'AGENTS.md'
-      - 'docs/**'
+      - 'openspec/**'
       - 'mcp/README.md'
       - 'web/README.md'
       - 'examples/**'
-      - 'site/**'
+      - 'compose/**'
+      - 'scripts/check-docs*'
       - 'LICENSE'
       - '.github/dependabot.yml'
-      - '.github/workflows/pages.yml'
+      - '.github/workflows/docs.yml'
   pull_request:
     paths-ignore:
       - 'README.md'
       - 'AGENTS.md'
-      - 'docs/**'
+      - 'openspec/**'
       - 'mcp/README.md'
       - 'web/README.md'
       - 'examples/**'
-      - 'site/**'
+      - 'compose/**'
+      - 'scripts/check-docs*'
       - 'LICENSE'
       - '.github/dependabot.yml'
-      - '.github/workflows/pages.yml'
+      - '.github/workflows/docs.yml'
   schedule:
     - cron: '0 4 * * 1'
       timezone: Europe/Warsaw
@@ -73,7 +75,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./Dockerfile
+          file: ./docker/openscad.Dockerfile
           platforms: linux/amd64
           load: true
           tags: openscad:test

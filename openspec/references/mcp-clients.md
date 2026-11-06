@@ -5,7 +5,7 @@ The server exposes Streamable HTTP on `/mcp` and stdio from the compiled runtime
 ## Streamable HTTP
 
 ```sh
-docker compose -f docker-compose_prebuilt.yml up -d
+docker compose -f compose/docker-compose.yaml up -d
 ```
 
 ```json
@@ -28,7 +28,7 @@ Authorization: Bearer <token>
 
 ## Hermes Agent
 
-Use the example at [examples/hermes-agent-mcp.yaml](../examples/hermes-agent-mcp.yaml). Put the same value in the server `.env` as `MCP_AUTH_TOKEN` and in the Hermes environment as `OPENS_SCAD_MCP_TOKEN`.
+Use the example at [examples/hermes-agent-mcp.yaml](../../examples/hermes-agent-mcp.yaml). Put the same value in the server `.env` as `MCP_AUTH_TOKEN` and in the Hermes environment as `OPENS_SCAD_MCP_TOKEN`.
 
 ## Stdio
 
