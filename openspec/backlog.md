@@ -4,7 +4,6 @@ These entries preserve useful direction without pretending a design has been app
 
 | Area | State | Next evidence or decision |
 | --- | --- | --- |
-| Real-browser acceptance | Open | The deployed UI shell and assets are served, but the sandbox Obscura worker lacks `importScripts`. Verify file selection, Customizer changes, paste mode and STL export in a real Chromium instance |
 | Old GHCR package | Open | `ghcr.io/miloszkolber/openscad-mcp` remains because GitHub has no package rename and the available token lacks delete-package scope. Decide whether to retain it as history or delete it with broader authority |
 | Multi-architecture image | Deferred | Publish `linux/arm64` only after an emulated or native build and the same smoke tests pass. The distroless runtime copies an amd64 `libatomic` path today |
 | TypeScript 7 for lint | Deferred | `typescript-eslint` does not support the TypeScript 7 API. Keep TypeScript 6 for ESLint and ts-loader, and revisit when the parser supports the native API |
