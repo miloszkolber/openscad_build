@@ -37,7 +37,7 @@ This checklist tracks remaining work after the browser merge. The project builds
 - [ ] Upgrade the web UI to React 19 with `@monaco-editor/react` 4.7.0 and coordinated React type packages.
 - [ ] Migrate the Monaco editor imports for monaco-editor 0.57 package exports.
 - [ ] Migrate `@gltf-transform/core` and `@gltf-transform/extensions` to 4.5 and resolve the typed-array boundary.
-- [ ] Evaluate TypeScript 7 and Vitest 5 after their ecosystem peers catch up.
+- [ ] Evaluate TypeScript 7 after its ecosystem peers catch up. Vitest 5 is already adopted.
 
 ## Merge review
 
