@@ -42,6 +42,6 @@ jobs:
           node-version: '26'
       - run: node scripts/check-docs.mjs
       - run: node --test scripts/check-docs.test.mjs
-      - run: npx --yes @fission-ai/openspec@1.16.0 validate --all --strict
+      - run: npx --yes @fission-ai/openspec@2.0.0 validate --all --strict
         env:
           OPENSPEC_TELEMETRY: '0'

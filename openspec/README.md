@@ -42,14 +42,14 @@ For acceptance-only or documentation-only work, use `skip_specs: true` in `.open
 ```sh
 node scripts/check-docs.mjs
 node --test scripts/check-docs.test.mjs
-OPENSPEC_TELEMETRY=0 npx -y @fission-ai/openspec@1.16.0 validate --all --strict
+OPENSPEC_TELEMETRY=0 npx -y @fission-ai/openspec@2.0.0 validate --all --strict
 ```
 
 After verification and review, merge deltas and archive with:
 
 ```sh
-OPENSPEC_TELEMETRY=0 npx -y @fission-ai/openspec@1.16.0 archive <name>
-OPENSPEC_TELEMETRY=0 npx -y @fission-ai/openspec@1.16.0 validate --all --strict
+OPENSPEC_TELEMETRY=0 npx -y @fission-ai/openspec@2.0.0 archive <name>
+OPENSPEC_TELEMETRY=0 npx -y @fission-ai/openspec@2.0.0 validate --all --strict
 ```
 
 Use `--skip-specs` only for changes with no deltas or deltas already merged and reviewed. Never use it to omit required updates. Never use `--no-validate` to hide an archive failure. The lightweight check verifies local links, scenario structure, change metadata and task numbering. The upstream CLI checks its own parsing and validation rules. Neither verifies implementation. OpenSpec is development tooling, not an image dependency. The [documentation workflow](../.github/workflows/docs.yml) runs these checks for relevant documentation and implementation changes.

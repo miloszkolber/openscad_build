@@ -30,7 +30,7 @@
     "test:browser": "npm run test:browser -w web",
     "test:docs": "node --test scripts/check-docs.test.mjs",
     "typecheck": "npm run typecheck -w mcp && npm run typecheck -w web",
-    "validate:openspec": "npx --yes @fission-ai/openspec@1.16.0 validate --all --strict"
+    "validate:openspec": "npx --yes @fission-ai/openspec@2.0.0 validate --all --strict"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
